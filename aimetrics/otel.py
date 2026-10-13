@@ -57,12 +57,17 @@ def _field_for(name: str, attrs: dict) -> str | None:
     return None
 
 
-def parse(payload: dict, series_delta) -> dict[tuple[str, str], dict]:
+def parse(payload: dict, series_delta, stats: dict | None = None) -> dict[tuple[str, str], dict]:
     """Agrega um pedido OTLP em {(email, dia): contadores}.
 
     `series_delta(key, start_ns, value) -> float` converte séries cumulativas em deltas
     (guarda o último valor visto); para séries delta devolve-se o próprio valor.
+    `stats`, se for passado, recebe contagens para diagnóstico (pontos usados e descartados).
     """
+    stats = stats if stats is not None else {}
+    for k in ("points", "used", "no_email", "ignored_metric"):
+        stats.setdefault(k, 0)
+    stats.setdefault("metrics", set())
     out: dict[tuple[str, str], dict] = defaultdict(lambda: {f: 0.0 for f in FIELDS} | {"last_ns": 0})
     for rm in payload.get("resourceMetrics", []):
         res = _attrs((rm.get("resource") or {}).get("attributes"))
@@ -75,8 +80,15 @@ def parse(payload: dict, series_delta) -> dict[tuple[str, str], dict]:
                     attrs = res | _attrs(dp.get("attributes"))
                     field = _field_for(name, attrs)
                     email = attrs.get("user.email")
-                    if not field or not email:
+                    stats["points"] += 1
+                    stats["metrics"].add(name)
+                    if not field:
+                        stats["ignored_metric"] += 1
                         continue
+                    if not email:
+                        stats["no_email"] += 1
+                        continue
+                    stats["used"] += 1
                     value = _value(dp)
                     if temporality == CUMULATIVE:
                         key = name + "|" + "|".join(f"{k}={attrs[k]}" for k in sorted(attrs))

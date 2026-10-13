@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from . import db, otel
 from .config import Settings
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("uvicorn.error")
 settings = Settings()
 app = FastAPI(title="Outsmart AI metrics")
 
@@ -44,10 +44,14 @@ async def otel_metrics(request: Request):
         # Claude Code tem de usar OTEL_EXPORTER_OTLP_PROTOCOL=http/json
         raise HTTPException(415, "usar OTLP http/json")
     payload = await request.json()
+    stats: dict = {}
     with db.connect(settings.database_url) as conn:
-        buckets = otel.parse(payload, otel.make_series_delta(conn))
+        buckets = otel.parse(payload, otel.make_series_delta(conn), stats)
         otel.store(conn, buckets)
         conn.commit()
+    log.info("otel: %d pontos, %d usados, %d sem user.email, emails=%s, métricas=%s",
+             stats["points"], stats["used"], stats["no_email"],
+             sorted({e for e, _ in buckets}), sorted(stats["metrics"]))
     return {"partialSuccess": {}}
 
 
