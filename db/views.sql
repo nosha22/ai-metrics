@@ -6,7 +6,7 @@ DROP VIEW IF EXISTS v_cfr_weekly, v_survival, v_pr_facts, v_git_ai_pr, v_idle_se
 
 -- Membros atuais (como o Swarmia: a composição atual da equipa vale para todo o histórico)
 CREATE VIEW v_members AS
-SELECT p.id AS person_id, p.name, COALESCE(t.name, '(sem equipa)') AS team
+SELECT p.id AS person_id, p.name, COALESCE(t.name, '(no team)') AS team
 FROM people p
 LEFT JOIN teams t ON t.id = p.team_id
 WHERE NOT p.is_bot AND (p.left_on IS NULL OR p.left_on > current_date);
@@ -86,7 +86,7 @@ GROUP BY c.pr_id;
 -- Uma linha por PR com tudo o que os dashboards precisam
 CREATE VIEW v_pr_facts AS
 SELECT pr.id AS pr_id, r.full_name AS repo, pr.number, pr.title,
-       COALESCE(tm.name, rt.name, '(sem equipa)') AS team,
+       COALESCE(tm.name, rt.name, '(no team)') AS team,
        p.name AS person,
        pr.created_at, pr.merged_at,
        date_trunc('week', pr.merged_at)::date AS merged_week,
@@ -116,10 +116,10 @@ SELECT f.pr_id, f.repo, f.team, f.merged_at, s.measured_at,
        s.surviving_lines, pr.additions,
        LEAST(1.0, s.surviving_lines::numeric / NULLIF(pr.additions, 0)) AS survival_rate,
        f.ai_share,
-       CASE WHEN f.ai_share IS NULL THEN 'Sem dados Git AI'
-            WHEN f.ai_share >= 0.5 THEN 'Maioria IA (>=50%)'
-            WHEN f.ai_share > 0 THEN 'Parte IA (<50%)'
-            ELSE 'Sem IA' END AS grupo
+       CASE WHEN f.ai_share IS NULL THEN 'No Git AI data'
+            WHEN f.ai_share >= 0.5 THEN 'Mostly AI (>=50%)'
+            WHEN f.ai_share > 0 THEN 'Partly AI (<50%)'
+            ELSE 'No AI' END AS ai_group
 FROM line_survival s
 JOIN pull_requests pr ON pr.id = s.pr_id
 JOIN v_pr_facts f ON f.pr_id = s.pr_id
@@ -138,7 +138,7 @@ WITH d AS (
     GROUP BY dep.id, dep.deployed_at
 )
 SELECT week,
-       CASE WHEN COALESCE(has_ai, FALSE) THEN 'Com IA' ELSE 'Sem IA' END AS grupo,
+       CASE WHEN COALESCE(has_ai, FALSE) THEN 'With AI' ELSE 'Without AI' END AS ai_group,
        count(*) AS deployments,
        count(*) FILTER (WHERE failed) AS failed,
        count(*) FILTER (WHERE failed)::numeric / NULLIF(count(*), 0) AS cfr

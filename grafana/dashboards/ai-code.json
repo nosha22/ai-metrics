@@ -1,7 +1,7 @@
 {
   "uid": "ai-code",
-  "title": "IA · Código gerado e qualidade",
-  "description": "% de código IA (Git AI), sobrevivência das linhas e change failure rate.",
+  "title": "AI · Generated code & quality",
+  "description": "Share of AI code (Git AI), line survival and change failure rate.",
   "tags": [
     "ai-metrics"
   ],
@@ -18,7 +18,7 @@
     "list": [
       {
         "name": "team",
-        "label": "Equipa",
+        "label": "Team",
         "type": "query",
         "datasource": {
           "type": "grafana-postgresql-datasource",
@@ -32,12 +32,12 @@
         },
         "refresh": 1,
         "sort": 1,
-        "query": "SELECT name FROM teams UNION SELECT '(sem equipa)' ORDER BY 1",
+        "query": "SELECT name FROM teams UNION SELECT '(no team)' ORDER BY 1",
         "definition": "SELECT name FROM teams"
       },
       {
         "name": "high_only",
-        "label": "Só alta confiança",
+        "label": "High confidence only",
         "type": "custom",
         "query": "false,true",
         "current": {
@@ -56,7 +56,7 @@
             "selected": false
           }
         ],
-        "description": "true = ignora a regra das 24 h (menos falsos positivos, alguma sub-contagem)"
+        "description": "true = ignore the 24-hour rule (fewer false positives, some undercounting)"
       }
     ]
   },
@@ -66,7 +66,7 @@
       "title": "",
       "options": {
         "mode": "markdown",
-        "content": "A **% de código IA** vem das notas do Git AI e só cobre commits feitos com o Git AI instalado — ver a cobertura ao lado antes de tirar conclusões. **Sobrevivência** = linhas de cada PR que ainda existem no ramo principal (git blame). Nunca olhar para a % de IA sem a sobrevivência ao lado."
+        "content": "The **share of AI code** comes from Git AI notes and only covers commits made with Git AI installed. Check the coverage next to it before drawing conclusions. **Survival** = lines from each PR that still exist on the main branch (git blame). Never look at the AI share without survival next to it."
       },
       "id": 1,
       "gridPos": {
@@ -82,7 +82,7 @@
     },
     {
       "type": "stat",
-      "title": "% de código IA",
+      "title": "AI code share",
       "description": "",
       "targets": [
         {
@@ -133,8 +133,8 @@
     },
     {
       "type": "stat",
-      "title": "Cobertura do Git AI",
-      "description": "Commits com nota do Git AI ÷ commits. Abaixo de ~80% a % de IA não é representativa.",
+      "title": "Git AI coverage",
+      "description": "Commits with a Git AI note ÷ commits. Below ~80% the AI share is not representative.",
       "targets": [
         {
           "refId": "A",
@@ -184,7 +184,7 @@
     },
     {
       "type": "stat",
-      "title": "Sobrevivência a 30+ dias (IA ≥50%)",
+      "title": "Survival at 30+ days (AI ≥50%)",
       "description": "",
       "targets": [
         {
@@ -196,7 +196,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 AND grupo = 'Maioria IA (>=50%)' AND team IN (${team:sqlstring})"
+          "rawSql": "SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 AND ai_group = 'Mostly AI (>=50%)' AND team IN (${team:sqlstring})"
         }
       ],
       "fieldConfig": {
@@ -235,7 +235,7 @@
     },
     {
       "type": "stat",
-      "title": "Sobrevivência a 30+ dias (sem IA)",
+      "title": "Survival at 30+ days (no AI)",
       "description": "",
       "targets": [
         {
@@ -247,7 +247,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 AND grupo = 'Sem IA' AND team IN (${team:sqlstring})"
+          "rawSql": "SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 AND ai_group = 'No AI' AND team IN (${team:sqlstring})"
         }
       ],
       "fieldConfig": {
@@ -286,7 +286,7 @@
     },
     {
       "type": "timeseries",
-      "title": "% de código IA por semana",
+      "title": "AI code share per week",
       "description": "",
       "targets": [
         {
@@ -340,7 +340,7 @@
     },
     {
       "type": "table",
-      "title": "Por repositório",
+      "title": "By repository",
       "description": "",
       "targets": [
         {
@@ -352,7 +352,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT repo AS \"Repo\", sum(ai_lines) AS \"Linhas IA\", sum(human_lines) AS \"Linhas humanas\", sum(unknown_lines) AS \"Sem atestação\", sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS \"% IA\", sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) AS \"Cobertura\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 2 DESC"
+          "rawSql": "SELECT repo AS \"Repo\", sum(ai_lines) AS \"AI lines\", sum(human_lines) AS \"Human lines\", sum(unknown_lines) AS \"Unattested\", sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS \"AI share\", sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) AS \"Coverage\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 2 DESC"
         }
       ],
       "fieldConfig": {
@@ -361,7 +361,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "% IA"
+              "options": "AI share"
             },
             "properties": [
               {
@@ -373,7 +373,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Cobertura"
+              "options": "Coverage"
             },
             "properties": [
               {
@@ -401,7 +401,7 @@
     },
     {
       "type": "row",
-      "title": "Qualidade",
+      "title": "Quality",
       "id": 8,
       "collapsed": false,
       "gridPos": {
@@ -414,8 +414,8 @@
     },
     {
       "type": "barchart",
-      "title": "Sobrevivência das linhas por idade do PR",
-      "description": "Meia-vida = idade em que a sobrevivência cai abaixo de 50%. Retrabalho a 30 dias = 1 − sobrevivência aos 30–59 dias.",
+      "title": "Line survival by PR age",
+      "description": "Half-life = the age at which survival drops below 50%. Rework at 30 days = 1 − survival at 30–59 days.",
       "targets": [
         {
           "refId": "A",
@@ -426,7 +426,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT CASE WHEN age_days < 14 THEN '0–13 dias' WHEN age_days < 30 THEN '14–29 dias' WHEN age_days < 60 THEN '30–59 dias' WHEN age_days < 90 THEN '60–89 dias' ELSE '90+ dias' END AS \"Idade\", avg(survival_rate) FILTER (WHERE grupo = 'Maioria IA (>=50%)') AS \"Maioria IA\", avg(survival_rate) FILTER (WHERE grupo = 'Parte IA (<50%)') AS \"Parte IA\", avg(survival_rate) FILTER (WHERE grupo = 'Sem IA') AS \"Sem IA\" FROM v_survival WHERE team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT CASE WHEN age_days < 14 THEN '0–13 days' WHEN age_days < 30 THEN '14–29 days' WHEN age_days < 60 THEN '30–59 days' WHEN age_days < 90 THEN '60–89 days' ELSE '90+ days' END AS \"Age\", avg(survival_rate) FILTER (WHERE ai_group = 'Mostly AI (>=50%)') AS \"Mostly AI\", avg(survival_rate) FILTER (WHERE ai_group = 'Partly AI (<50%)') AS \"Partly AI\", avg(survival_rate) FILTER (WHERE ai_group = 'No AI') AS \"No AI\" FROM v_survival WHERE team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 1"
         }
       ],
       "fieldConfig": {
@@ -460,8 +460,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Change failure rate (produção)",
-      "description": "Deploys com incidente ÷ deploys. 'Com IA' = o deploy inclui pelo menos um PR assistido (alta confiança).",
+      "title": "Change failure rate (production)",
+      "description": "Deployments with an incident ÷ deployments. 'With AI' = the deployment includes at least one AI-assisted PR (high confidence).",
       "targets": [
         {
           "refId": "A",
@@ -472,7 +472,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "time_series",
-          "rawSql": "SELECT week AS time, grupo AS metric, cfr AS value FROM v_cfr_weekly WHERE $__timeFilter(week) ORDER BY 1"
+          "rawSql": "SELECT week AS time, ai_group AS metric, cfr AS value FROM v_cfr_weekly WHERE $__timeFilter(week) ORDER BY 1"
         }
       ],
       "fieldConfig": {

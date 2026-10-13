@@ -1,7 +1,7 @@
 {
   "uid": "ai-adoption",
-  "title": "IA · Adoção",
-  "description": "Licenças, utilizadores ativos e licenças paradas (definições do Swarmia).",
+  "title": "AI · Adoption",
+  "description": "Licenses, active users and idle seats (Swarmia definitions).",
   "tags": [
     "ai-metrics"
   ],
@@ -18,7 +18,7 @@
     "list": [
       {
         "name": "team",
-        "label": "Equipa",
+        "label": "Team",
         "type": "query",
         "datasource": {
           "type": "grafana-postgresql-datasource",
@@ -32,7 +32,7 @@
         },
         "refresh": 1,
         "sort": 1,
-        "query": "SELECT name FROM teams UNION SELECT '(sem equipa)' ORDER BY 1",
+        "query": "SELECT name FROM teams UNION SELECT '(no team)' ORDER BY 1",
         "definition": "SELECT name FROM teams"
       }
     ]
@@ -43,7 +43,7 @@
       "title": "",
       "options": {
         "mode": "markdown",
-        "content": "**Ativo** = aceitou código ou usou chat na semana. **Com licença** = teve licença em algum momento da semana; para fontes sem lista de licenças (OpenTelemetry) conta só quem esteve ativo."
+        "content": "**Active** = accepted code or used chat during the week. **Licensed** = had a license at some point during the week; for sources without a license list (OpenTelemetry), only people who were active count."
       },
       "id": 1,
       "gridPos": {
@@ -59,8 +59,8 @@
     },
     {
       "type": "stat",
-      "title": "Taxa de licenças",
-      "description": "Membros com licença ÷ membros, semana atual, todas as ferramentas somadas",
+      "title": "License rate",
+      "description": "Members with a license ÷ members, current week, all tools added together",
       "targets": [
         {
           "refId": "A",
@@ -110,8 +110,8 @@
     },
     {
       "type": "stat",
-      "title": "Taxa de atividade (média)",
-      "description": "Média semanal de ativos ÷ membros. Uma pessoa ativa em duas ferramentas conta uma vez por equipa (máximo).",
+      "title": "Active rate (avg)",
+      "description": "Weekly average of active members ÷ members. Someone active in two tools counts once per team (max).",
       "targets": [
         {
           "refId": "A",
@@ -161,8 +161,8 @@
     },
     {
       "type": "stat",
-      "title": "Licenças paradas",
-      "description": "Licença ativa sem atividade nos últimos 28 dias",
+      "title": "Idle seats",
+      "description": "Active license with no activity in the last 28 days",
       "targets": [
         {
           "refId": "A",
@@ -212,8 +212,8 @@
     },
     {
       "type": "stat",
-      "title": "Contas por ligar",
-      "description": "Correr `aimetrics org unlinked` e acrescentar ao organization.yml",
+      "title": "Unlinked accounts",
+      "description": "Run `aimetrics org unlinked` and add them to organization.yml",
       "targets": [
         {
           "refId": "A",
@@ -263,7 +263,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Taxa de atividade semanal por ferramenta",
+      "title": "Weekly active rate by tool",
       "description": "",
       "targets": [
         {
@@ -317,7 +317,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Ativos por semana",
+      "title": "Active users per week",
       "description": "",
       "targets": [
         {
@@ -369,7 +369,7 @@
     },
     {
       "type": "table",
-      "title": "Adoção por equipa (período)",
+      "title": "Adoption by team (selected period)",
       "description": "",
       "targets": [
         {
@@ -381,7 +381,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT team AS \"Equipa\", tool AS \"Ferramenta\", max(members) AS \"Membros\", max(enabled)::numeric / NULLIF(max(members),0) AS \"Taxa de licenças\", avg(weekly_active::numeric / NULLIF(members,0)) AS \"Taxa de atividade\" FROM v_adoption_weekly WHERE week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1,2"
+          "rawSql": "SELECT team AS \"Team\", tool AS \"Tool\", max(members) AS \"Members\", max(enabled)::numeric / NULLIF(max(members),0) AS \"License rate\", avg(weekly_active::numeric / NULLIF(members,0)) AS \"Active rate\" FROM v_adoption_weekly WHERE week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1,2"
         }
       ],
       "fieldConfig": {
@@ -390,7 +390,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Taxa de licenças"
+              "options": "License rate"
             },
             "properties": [
               {
@@ -402,7 +402,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Taxa de atividade"
+              "options": "Active rate"
             },
             "properties": [
               {
@@ -430,8 +430,8 @@
     },
     {
       "type": "table",
-      "title": "Licenças paradas",
-      "description": "Rever com cada pessoa antes de retirar a licença",
+      "title": "Idle seats",
+      "description": "Talk to each person before removing a license",
       "targets": [
         {
           "refId": "A",
@@ -442,7 +442,7 @@
           "rawQuery": true,
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT team AS \"Equipa\", name AS \"Pessoa\", tool AS \"Ferramenta\", valid_from AS \"Licença desde\", last_active_day AS \"Último dia ativo\" FROM v_idle_seats WHERE team IN (${team:sqlstring}) ORDER BY 1,2"
+          "rawSql": "SELECT team AS \"Team\", name AS \"Person\", tool AS \"Tool\", valid_from AS \"Licensed since\", last_active_day AS \"Last active day\" FROM v_idle_seats WHERE team IN (${team:sqlstring}) ORDER BY 1,2"
         }
       ],
       "fieldConfig": {
@@ -466,7 +466,7 @@
     },
     {
       "type": "row",
-      "title": "Atividade",
+      "title": "Activity",
       "id": 10,
       "collapsed": false,
       "gridPos": {
@@ -479,8 +479,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Taxa de aceitação de ações",
-      "description": "Aceites ÷ (aceites + rejeitadas). Não mede código entregue.",
+      "title": "Action acceptance rate",
+      "description": "Accepted ÷ (accepted + rejected). Does not measure delivered code.",
       "targets": [
         {
           "refId": "A",
@@ -533,8 +533,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Linhas geradas pela IA (não necessariamente commitadas)",
-      "description": "O Swarmia avisa: alguém pode aceitar 200 linhas para acabar num PR de 10. Usar o dashboard Git AI para código entregue.",
+      "title": "Lines generated by AI (not necessarily committed)",
+      "description": "As Swarmia warns, someone can accept 200 lines and end up with a 10-line PR. Use the Git AI dashboard for delivered code.",
       "targets": [
         {
           "refId": "A",
@@ -585,8 +585,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Custo estimado (USD)",
-      "description": "Só Claude Code (Analytics API e OpenTelemetry). A Cursor API diária não dá custo.",
+      "title": "Estimated cost (USD)",
+      "description": "Claude Code only (Analytics API and OpenTelemetry). The Cursor daily API does not report cost.",
       "targets": [
         {
           "refId": "A",

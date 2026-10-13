@@ -211,4 +211,4 @@ def test_git_ai_and_survival(conn, tmp_path):
     f = conn.execute("SELECT * FROM v_pr_facts WHERE pr_id = 1").fetchone()
     assert float(f["ai_share"]) == 0.8 and f["ai_assisted_high"]
     s = conn.execute("SELECT * FROM v_survival").fetchone()
-    assert s["surviving_lines"] == 6 and float(s["survival_rate"]) == 0.6 and s["grupo"] == "Maioria IA (>=50%)"
+    assert s["surviving_lines"] == 6 and float(s["survival_rate"]) == 0.6 and s["ai_group"] == "Mostly AI (>=50%)"

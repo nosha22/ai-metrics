@@ -121,29 +121,29 @@ class Detector:
         first = pr.commits[0] if pr.commits else None
         for tool in self.patterns:
             if self._any(tool, "agents", [pr.author_login]):
-                return Attribution(tool, "cloud_agent", "high", f"PR aberto por {pr.author_login}")
+                return Attribution(tool, "cloud_agent", "high", f"PR opened by {pr.author_login}")
         if first:
             for tool in self.patterns:
                 if self._agent_author(tool, first):
-                    return Attribution(tool, "cloud_agent", "high", f"1.º commit {first.sha[:7]} escrito por {first.author_login or first.author_name}")
+                    return Attribution(tool, "cloud_agent", "high", f"first commit {first.sha[:7]} authored by {first.author_login or first.author_name}")
             for tool in self.patterns:
                 if self._agent_committer(tool, first):
-                    return Attribution(tool, "cloud_agent", "high", f"1.º commit {first.sha[:7]} commitado por {first.committer_login or first.committer_name}")
+                    return Attribution(tool, "cloud_agent", "high", f"first commit {first.sha[:7]} committed by {first.committer_login or first.committer_name}")
         return None
 
     def assisted_high(self, tool: str, pr: PullRequest) -> Attribution | None:
         for c in pr.commits:
             if self._agent_author(tool, c):
-                return Attribution(tool, "assisted", "high", f"commit {c.sha[:7]} escrito pelo agente")
+                return Attribution(tool, "assisted", "high", f"commit {c.sha[:7]} authored by the agent")
             hit = self._any(tool, "coauthor", c.co_authors)
             if hit:
-                return Attribution(tool, "assisted", "high", f"co-autor «{hit}» em {c.sha[:7]}")
+                return Attribution(tool, "assisted", "high", f"co-author '{hit}' in {c.sha[:7]}")
             hit = self._any(tool, "trailers", c.trailers)
             if hit:
-                return Attribution(tool, "assisted", "high", f"trailer «{hit}» em {c.sha[:7]}")
+                return Attribution(tool, "assisted", "high", f"trailer '{hit}' in {c.sha[:7]}")
         hit = self._any(tool, "labels", pr.labels)
         if hit:
-            return Attribution(tool, "assisted", "high", f"label «{hit}» no PR")
+            return Attribution(tool, "assisted", "high", f"label '{hit}' on the PR")
         return None
 
     def assisted_low(self, tool: str, pr: PullRequest, used_tool: UsedTool | None) -> Attribution | None:
@@ -153,7 +153,7 @@ class Detector:
             if c.author_person is None or c.committed_at is None:
                 continue
             if used_tool(c.author_person, tool, c.committed_at - ATTRIBUTION_WINDOW, c.committed_at):
-                return Attribution(tool, "assisted", "low", f"autor usou a ferramenta nas 24 h antes de {c.sha[:7]}")
+                return Attribution(tool, "assisted", "low", f"author used the tool in the 24 h before {c.sha[:7]}")
         return None
 
     def review_agents(self, pr: PullRequest) -> list[Attribution]:
@@ -161,7 +161,7 @@ class Detector:
         for tool in self.patterns:
             hit = self._any(tool, "reviewers", pr.reviewers)
             if hit:
-                out.append(Attribution(tool, "review_agent", "high", f"review de {hit}"))
+                out.append(Attribution(tool, "review_agent", "high", f"review by {hit}"))
         return out
 
     def attribute(self, pr: PullRequest, used_tool: UsedTool | None = None) -> list[Attribution]:
@@ -179,7 +179,7 @@ class Detector:
         if agent:
             add(agent)
             # Um PR de agente também conta como assistido (como no Swarmia)
-            add(Attribution(agent.tool, "assisted", "high", "PR criado por agente"))
+            add(Attribution(agent.tool, "assisted", "high", "PR created by an agent"))
 
         for tool in self.patterns:
             add(self.assisted_high(tool, pr))
@@ -188,7 +188,7 @@ class Detector:
 
         if pr.git_ai_lines > 0:
             share = pr.git_ai_lines / pr.git_ai_added if pr.git_ai_added else 0
-            add(Attribution("git_ai", "assisted", "high", f"Git AI: {pr.git_ai_lines} linhas IA ({share:.0%})"))
+            add(Attribution("git_ai", "assisted", "high", f"Git AI: {pr.git_ai_lines} AI lines ({share:.0%})"))
 
         for a in self.review_agents(pr):
             add(a)

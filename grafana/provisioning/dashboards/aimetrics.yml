@@ -1,7 +1,7 @@
 apiVersion: 1
 providers:
   - name: AI metrics
-    folder: IA
+    folder: AI
     type: file
     disableDeletion: true
     allowUiUpdates: false

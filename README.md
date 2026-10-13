@@ -6,10 +6,10 @@ Responde a quatro perguntas:
 
 | Pergunta | Dashboard | Fonte |
 | --- | --- | --- |
-| Quem usa as ferramentas de IA? | **IA · Adoção** | Claude Code (Analytics API ou OpenTelemetry), Cursor Admin API, `organization.yml` |
-| Como usa? | **IA · Adoção** → Atividade | as mesmas |
-| Que efeito tem nos PRs? | **IA · Impacto nos PRs** | GitHub (PRs, commits, reviews) + regras de deteção |
-| Quanto do código é IA, e aguenta-se? | **IA · Código gerado e qualidade** | notas do Git AI, `git blame`, deploys e incidentes |
+| Quem usa as ferramentas de IA? | **AI · Adoption** | Claude Code (Analytics API ou OpenTelemetry), Cursor Admin API, `organization.yml` |
+| Como usa? | **AI · Adoption** → Activity | as mesmas |
+| Que efeito tem nos PRs? | **AI · PR impact** | GitHub (PRs, commits, reviews) + regras de deteção |
+| Quanto do código é IA, e aguenta-se? | **AI · Generated code & quality** | notas do Git AI, `git blame`, deploys e incidentes |
 
 As regras de deteção e as definições das métricas seguem a documentação pública do Swarmia
 ([deteção](https://help.swarmia.com/features/ai-tools/ai-tool-detection-and-filters),
@@ -45,7 +45,7 @@ cp config/organization.example.yml config/organization.yml   # equipas, pessoas,
 docker compose up -d --build
 ```
 
-Grafana em `http://<servidor>:3000` (utilizador `admin`, password `GRAFANA_ADMIN_PASSWORD`), pasta **IA**.
+Grafana em `http://<servidor>:3000` (utilizador `admin`, password `GRAFANA_ADMIN_PASSWORD`), pasta **AI**.
 Pôr o Grafana e a porta 8080 atrás do reverse proxy com HTTPS antes de ligar o OpenTelemetry.
 
 Comandos úteis (dentro do contentor `scheduler`):

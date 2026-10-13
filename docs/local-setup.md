@@ -163,7 +163,7 @@ docker compose logs -f api
 Ask Claude Code anything and wait 10–20 seconds. You should see a line like:
 
 ```
-otel: 6 pontos, 6 usados, 0 sem user.email, emails=['you@example.com'], métricas=[...]
+otel: 6 points, 6 used, 0 without user.email, emails=['you@example.com'], metrics=[...]
 ```
 
 Confirm the data reached the database:
@@ -204,13 +204,13 @@ Grafana stores the admin password the first time it starts. If you changed `.env
 docker compose exec grafana grafana cli admin reset-admin-password NewPassword123
 ```
 
-The dashboards are under **Dashboards → IA**:
+The dashboards are under **Dashboards → AI**. If you ran an earlier version, an empty **IA** folder may remain; you can delete it.
 
 | Dashboard | What to look for |
 | --- | --- |
-| **IA · Adoção** | You as an active Claude Code user this week |
-| **IA · Impacto nos PRs** | Your PR as "Com IA", and in the table at the bottom the reason (co-author `noreply@anthropic.com`) |
-| **IA · Código gerado e qualidade** | Empty until you complete step 9 |
+| **AI · Adoption** | You as an active Claude Code user this week |
+| **AI · PR impact** | Your PR as "With AI", and in the table at the bottom the reason (co-author `noreply@anthropic.com`) |
+| **AI · Generated code & quality** | Empty until you complete step 9 |
 
 ## 9. Optional: Git AI for the share of AI-written lines
 
@@ -249,8 +249,8 @@ Run `docker compose logs -f api` while using Claude Code and match what you see:
 | `POST /otel/v1/metrics 401` | Token mismatch | See [401 Unauthorized](#401-unauthorized) |
 | `POST /otel/v1/metrics 503` | `OTEL_INGEST_TOKEN` is empty in the container | Fill it in `.env`, then `docker compose up -d` |
 | `POST /otel/v1/metrics 415` | Wrong protocol | Set `"OTEL_EXPORTER_OTLP_PROTOCOL": "http/json"` |
-| `otel: … 0 usados, N sem user.email` | Data arrives without the user's email | Open an issue with that log line |
-| `otel: … usados, emails=[...]` | Working | Run the `psql` query again |
+| `otel: … 0 used, N without user.email` | Data arrives without the user's email | Open an issue with that log line |
+| `otel: … used, emails=[...]` | Working | Run the `psql` query again |
 
 ### 401 Unauthorized
 

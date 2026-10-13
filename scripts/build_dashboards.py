@@ -1,6 +1,6 @@
-"""Gera os dashboards Grafana em grafana/dashboards/*.json.
+"""Generates the Grafana dashboards in grafana/dashboards/*.json.
 
-Os dashboards são código: editar este ficheiro e correr `python scripts/build_dashboards.py`.
+Dashboards are code: edit this file and run `python scripts/build_dashboards.py`.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ OUT = Path(__file__).resolve().parent.parent / "grafana" / "dashboards"
 DS = {"type": "grafana-postgresql-datasource", "uid": "aimetrics-pg"}
 
 AI_GROUP = ("CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) "
-            "THEN 'Com IA' ELSE 'Sem IA' END")
+            "THEN 'With AI' ELSE 'Without AI' END")
 TEAM = "team IN (${team:sqlstring})"
 
 
@@ -55,17 +55,17 @@ class Board:
 
 
 def team_var() -> dict:
-    return {"name": "team", "label": "Equipa", "type": "query", "datasource": DS, "multi": True, "includeAll": True,
+    return {"name": "team", "label": "Team", "type": "query", "datasource": DS, "multi": True, "includeAll": True,
             "current": {"text": "All", "value": "$__all"}, "refresh": 1, "sort": 1,
-            "query": "SELECT name FROM teams UNION SELECT '(sem equipa)' ORDER BY 1",
+            "query": "SELECT name FROM teams UNION SELECT '(no team)' ORDER BY 1",
             "definition": "SELECT name FROM teams"}
 
 
 def high_only_var() -> dict:
-    return {"name": "high_only", "label": "Só alta confiança", "type": "custom", "query": "false,true",
+    return {"name": "high_only", "label": "High confidence only", "type": "custom", "query": "false,true",
             "current": {"text": "false", "value": "false"},
             "options": [{"text": "false", "value": "false", "selected": True}, {"text": "true", "value": "true", "selected": False}],
-            "description": "true = ignora a regra das 24 h (menos falsos positivos, alguma sub-contagem)"}
+            "description": "true = ignore the 24-hour rule (fewer false positives, some undercounting)"}
 
 
 def q(sql: str, fmt: str = "table", ref: str = "A") -> dict:
@@ -108,107 +108,107 @@ def barchart(title, sql, unit="h", desc=""):
 
 # ---------------------------------------------------------------------------
 def adoption() -> Board:
-    b = Board("ai-adoption", "IA · Adoção", "Licenças, utilizadores ativos e licenças paradas (definições do Swarmia).")
-    b.text("**Ativo** = aceitou código ou usou chat na semana. **Com licença** = teve licença em algum momento "
-           "da semana; para fontes sem lista de licenças (OpenTelemetry) conta só quem esteve ativo.")
+    b = Board("ai-adoption", "AI · Adoption", "Licenses, active users and idle seats (Swarmia definitions).")
+    b.text("**Active** = accepted code or used chat during the week. **Licensed** = had a license at some point "
+           "during the week; for sources without a license list (OpenTelemetry), only people who were active count.")
     window = "week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND " + TEAM
     b.add([
-        (stat("Taxa de licenças", f"SELECT sum(enabled)::numeric / NULLIF(sum(members),0) FROM v_adoption_weekly "
+        (stat("License rate", f"SELECT sum(enabled)::numeric / NULLIF(sum(members),0) FROM v_adoption_weekly "
               f"WHERE week = date_trunc('week', current_date)::date AND {TEAM}",
-              desc="Membros com licença ÷ membros, semana atual, todas as ferramentas somadas"), 6),
-        (stat("Taxa de atividade (média)", f"SELECT avg(r) FROM (SELECT week, sum(weekly_active)::numeric / NULLIF(sum(members),0) r "
+              desc="Members with a license ÷ members, current week, all tools added together"), 6),
+        (stat("Active rate (avg)", f"SELECT avg(r) FROM (SELECT week, sum(weekly_active)::numeric / NULLIF(sum(members),0) r "
               f"FROM (SELECT week, team, max(weekly_active) weekly_active, max(members) members FROM v_adoption_weekly "
               f"WHERE {window} GROUP BY week, team) x GROUP BY week) w",
-              desc="Média semanal de ativos ÷ membros. Uma pessoa ativa em duas ferramentas conta uma vez por equipa (máximo)."), 6),
-        (stat("Licenças paradas", f"SELECT count(*) FROM v_idle_seats WHERE {TEAM}", unit="none",
-              desc="Licença ativa sem atividade nos últimos 28 dias"), 6),
-        (stat("Contas por ligar", "SELECT count(*) FROM identities WHERE person_id IS NULL", unit="none",
-              desc="Correr `aimetrics org unlinked` e acrescentar ao organization.yml"), 6),
+              desc="Weekly average of active members ÷ members. Someone active in two tools counts once per team (max)."), 6),
+        (stat("Idle seats", f"SELECT count(*) FROM v_idle_seats WHERE {TEAM}", unit="none",
+              desc="Active license with no activity in the last 28 days"), 6),
+        (stat("Unlinked accounts", "SELECT count(*) FROM identities WHERE person_id IS NULL", unit="none",
+              desc="Run `aimetrics org unlinked` and add them to organization.yml"), 6),
     ], h=5)
     b.add([
-        (timeseries("Taxa de atividade semanal por ferramenta",
+        (timeseries("Weekly active rate by tool",
                     f"SELECT week AS time, tool AS metric, sum(weekly_active)::numeric / NULLIF(sum(members),0) AS value "
                     f"FROM v_adoption_weekly WHERE {window} GROUP BY 1,2 ORDER BY 1", minv=0, maxv=1), 12),
-        (timeseries("Ativos por semana", f"SELECT week AS time, tool AS metric, sum(weekly_active) AS value "
+        (timeseries("Active users per week", f"SELECT week AS time, tool AS metric, sum(weekly_active) AS value "
                     f"FROM v_adoption_weekly WHERE {window} GROUP BY 1,2 ORDER BY 1", unit="none", bars=True), 12),
     ], h=9)
     b.add([
-        (table("Adoção por equipa (período)",
-               f"SELECT team AS \"Equipa\", tool AS \"Ferramenta\", max(members) AS \"Membros\", "
-               f"max(enabled)::numeric / NULLIF(max(members),0) AS \"Taxa de licenças\", "
-               f"avg(weekly_active::numeric / NULLIF(members,0)) AS \"Taxa de atividade\" "
+        (table("Adoption by team (selected period)",
+               f"SELECT team AS \"Team\", tool AS \"Tool\", max(members) AS \"Members\", "
+               f"max(enabled)::numeric / NULLIF(max(members),0) AS \"License rate\", "
+               f"avg(weekly_active::numeric / NULLIF(members,0)) AS \"Active rate\" "
                f"FROM v_adoption_weekly WHERE {window} GROUP BY 1,2 ORDER BY 1,2",
-               units={"Taxa de licenças": "percentunit", "Taxa de atividade": "percentunit"}), 12),
-        (table("Licenças paradas", f"SELECT team AS \"Equipa\", name AS \"Pessoa\", tool AS \"Ferramenta\", "
-               f"valid_from AS \"Licença desde\", last_active_day AS \"Último dia ativo\" FROM v_idle_seats WHERE {TEAM} ORDER BY 1,2",
-               desc="Rever com cada pessoa antes de retirar a licença"), 12),
+               units={"License rate": "percentunit", "Active rate": "percentunit"}), 12),
+        (table("Idle seats", f"SELECT team AS \"Team\", name AS \"Person\", tool AS \"Tool\", "
+               f"valid_from AS \"Licensed since\", last_active_day AS \"Last active day\" FROM v_idle_seats WHERE {TEAM} ORDER BY 1,2",
+               desc="Talk to each person before removing a license"), 12),
     ], h=9)
-    b.row("Atividade")
+    b.row("Activity")
     b.add([
-        (timeseries("Taxa de aceitação de ações", f"SELECT date_trunc('week', a.day) AS time, a.tool AS metric, "
+        (timeseries("Action acceptance rate", f"SELECT date_trunc('week', a.day) AS time, a.tool AS metric, "
                     f"sum(a.actions_accepted)::numeric / NULLIF(sum(a.actions_accepted + a.actions_rejected),0) AS value "
                     f"FROM v_ai_activity a JOIN v_members m USING (person_id) WHERE $__timeFilter(a.day) AND m.{TEAM} "
                     f"GROUP BY 1,2 ORDER BY 1", minv=0, maxv=1,
-                    desc="Aceites ÷ (aceites + rejeitadas). Não mede código entregue."), 8),
-        (timeseries("Linhas geradas pela IA (não necessariamente commitadas)",
+                    desc="Accepted ÷ (accepted + rejected). Does not measure delivered code."), 8),
+        (timeseries("Lines generated by AI (not necessarily committed)",
                     f"SELECT date_trunc('week', a.day) AS time, a.tool AS metric, sum(a.lines_added) AS value "
                     f"FROM v_ai_activity a JOIN v_members m USING (person_id) WHERE $__timeFilter(a.day) AND m.{TEAM} "
                     f"GROUP BY 1,2 ORDER BY 1", unit="none", bars=True,
-                    desc="O Swarmia avisa: alguém pode aceitar 200 linhas para acabar num PR de 10. Usar o dashboard Git AI para código entregue."), 8),
-        (timeseries("Custo estimado (USD)", f"SELECT date_trunc('week', a.day) AS time, a.tool AS metric, sum(a.cost_usd) AS value "
+                    desc="As Swarmia warns, someone can accept 200 lines and end up with a 10-line PR. Use the Git AI dashboard for delivered code."), 8),
+        (timeseries("Estimated cost (USD)", f"SELECT date_trunc('week', a.day) AS time, a.tool AS metric, sum(a.cost_usd) AS value "
                     f"FROM v_ai_activity a JOIN v_members m USING (person_id) WHERE $__timeFilter(a.day) AND m.{TEAM} "
                     f"GROUP BY 1,2 ORDER BY 1", unit="currencyUSD", bars=True,
-                    desc="Só Claude Code (Analytics API e OpenTelemetry). A Cursor API diária não dá custo."), 8),
+                    desc="Claude Code only (Analytics API and OpenTelemetry). The Cursor daily API does not report cost."), 8),
     ], h=9)
     return b
 
 
 def impact() -> Board:
-    b = Board("ai-impact", "IA · Impacto nos PRs", "PRs assistidos por IA vs restantes: throughput, cycle time, review e tamanho.",
+    b = Board("ai-impact", "AI · PR impact", "AI-assisted PRs vs the rest: throughput, cycle time, review time and size.",
               [high_only_var()])
     base = f"FROM v_pr_facts WHERE $__timeFilter(merged_at) AND {TEAM}"
-    b.text("Um PR é **assistido** se um commit tem co-autor, trailer ou autor de IA, se tem a label da ferramenta, "
-           "se o Git AI registou linhas IA, ou (baixa confiança) se o autor usou a ferramenta nas 24 h antes de um commit. "
-           "Ver o motivo de cada PR na tabela no fim. Mediana e p75 limitam o efeito de outliers.")
+    b.text("A PR is **AI-assisted** if a commit has an AI co-author, trailer or author, if it has the tool's label, "
+           "if Git AI recorded AI lines, or (low confidence) if the author used the tool in the 24 hours before a commit. "
+           "See the reason for each PR in the table at the bottom. Median and p75 limit the effect of outliers.")
     b.add([
-        (stat("PRs com IA", f"SELECT avg(CASE WHEN {AI_GROUP} = 'Com IA' THEN 1 ELSE 0 END) {base}"), 6),
-        (stat("PRs de agentes", f"SELECT avg(cloud_agent::int) {base}", desc="PR ou 1.º commit criado por um agente"), 6),
-        (stat("PRs com review de IA", f"SELECT avg(review_agent::int) {base}"), 6),
-        (stat("PRs merged", f"SELECT count(*) {base}", unit="none"), 6),
+        (stat("PRs with AI", f"SELECT avg(CASE WHEN {AI_GROUP} = 'With AI' THEN 1 ELSE 0 END) {base}"), 6),
+        (stat("Agent PRs", f"SELECT avg(cloud_agent::int) {base}", desc="PR or its first commit created by an agent"), 6),
+        (stat("PRs with AI review", f"SELECT avg(review_agent::int) {base}"), 6),
+        (stat("Merged PRs", f"SELECT count(*) {base}", unit="none"), 6),
     ], h=5)
     b.add([
-        (timeseries("Share de PRs com IA por semana", f"SELECT merged_week AS time, "
-                    f"avg(CASE WHEN {AI_GROUP} = 'Com IA' THEN 1 ELSE 0 END) AS \"PRs com IA\", "
-                    f"avg(cloud_agent::int) AS \"PRs de agentes\", avg(review_agent::int) AS \"Review de IA\" "
+        (timeseries("Share of PRs with AI per week", f"SELECT merged_week AS time, "
+                    f"avg(CASE WHEN {AI_GROUP} = 'With AI' THEN 1 ELSE 0 END) AS \"PRs with AI\", "
+                    f"avg(cloud_agent::int) AS \"Agent PRs\", avg(review_agent::int) AS \"AI review\" "
                     f"{base} GROUP BY 1 ORDER BY 1", minv=0, maxv=1), 12),
-        (timeseries("Throughput (PRs merged por semana)", f"SELECT merged_week AS time, {AI_GROUP} AS metric, count(*) AS value "
+        (timeseries("Throughput (merged PRs per week)", f"SELECT merged_week AS time, {AI_GROUP} AS metric, count(*) AS value "
                     f"{base} GROUP BY 1,2 ORDER BY 1", unit="none", bars=True), 12),
     ], h=9)
 
     def cmp(metric, label, unit):
-        return barchart(f"{label}: mediana e p75", f"SELECT {AI_GROUP} AS \"Grupo\", "
-                        f"percentile_cont(0.5) WITHIN GROUP (ORDER BY {metric}) AS \"Mediana\", "
+        return barchart(f"{label}: median and p75", f"SELECT {AI_GROUP} AS \"Group\", "
+                        f"percentile_cont(0.5) WITHIN GROUP (ORDER BY {metric}) AS \"Median\", "
                         f"percentile_cont(0.75) WITHIN GROUP (ORDER BY {metric}) AS \"p75\" "
                         f"{base} AND {metric} IS NOT NULL GROUP BY 1 ORDER BY 1", unit=unit)
 
-    b.add([(cmp("cycle_time_h", "Cycle time", "h"), 8), (cmp("review_time_h", "Tempo até 1.ª review humana", "h"), 8),
-           (cmp("batch_size", "Batch size (linhas +/−)", "none"), 8)], h=8)
+    b.add([(cmp("cycle_time_h", "Cycle time", "h"), 8), (cmp("review_time_h", "Time to first human review", "h"), 8),
+           (cmp("batch_size", "Batch size (lines +/−)", "none"), 8)], h=8)
     b.add([
-        (timeseries("Cycle time mediano por semana", f"SELECT merged_week AS time, {AI_GROUP} AS metric, "
+        (timeseries("Median cycle time per week", f"SELECT merged_week AS time, {AI_GROUP} AS metric, "
                     f"percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_h) AS value {base} GROUP BY 1,2 ORDER BY 1", unit="h"), 12),
-        (table("Por ferramenta", f"SELECT COALESCE(t, 'Sem IA') AS \"Ferramenta\", count(*) AS \"PRs\", "
-               f"percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_h) AS \"Cycle time (mediana)\", "
-               f"percentile_cont(0.5) WITHIN GROUP (ORDER BY review_time_h) AS \"Review (mediana)\", "
-               f"percentile_cont(0.5) WITHIN GROUP (ORDER BY batch_size) AS \"Batch size (mediana)\" "
+        (table("By tool", f"SELECT COALESCE(t, 'No AI') AS \"Tool\", count(*) AS \"PRs\", "
+               f"percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_h) AS \"Cycle time (median)\", "
+               f"percentile_cont(0.5) WITHIN GROUP (ORDER BY review_time_h) AS \"Review (median)\", "
+               f"percentile_cont(0.5) WITHIN GROUP (ORDER BY batch_size) AS \"Batch size (median)\" "
                f"FROM v_pr_facts LEFT JOIN LATERAL unnest(NULLIF(ai_tools, '{{}}')) t ON TRUE "
                f"WHERE $__timeFilter(merged_at) AND {TEAM} GROUP BY 1 ORDER BY 2 DESC",
-               desc="Um PR com duas ferramentas conta uma vez em cada (como no Swarmia).",
-               units={"Cycle time (mediana)": "h", "Review (mediana)": "h"}), 12),
+               desc="A PR with two tools counts once in each (as in Swarmia).",
+               units={"Cycle time (median)": "h", "Review (median)": "h"}), 12),
     ], h=9)
-    b.row("Detalhe")
-    b.add([(table("PRs e motivo da atribuição",
-                  f"SELECT f.merged_at AS \"Merged\", f.repo || '#' || f.number AS \"PR\", f.title AS \"Título\", f.person AS \"Pessoa\", "
-                  f"string_agg(a.tool || ' · ' || a.mode || ' · ' || a.confidence || ': ' || a.reason, E'\\n' ORDER BY a.tool) AS \"Atribuição\", "
+    b.row("Details")
+    b.add([(table("PRs and attribution reason",
+                  f"SELECT f.merged_at AS \"Merged\", f.repo || '#' || f.number AS \"PR\", f.title AS \"Title\", f.person AS \"Person\", "
+                  f"string_agg(a.tool || ' · ' || a.mode || ' · ' || a.confidence || ': ' || a.reason, E'\\n' ORDER BY a.tool) AS \"Attribution\", "
                   f"f.cycle_time_h AS \"Cycle time\", f.batch_size AS \"Batch\" "
                   f"FROM v_pr_facts f LEFT JOIN pr_ai_attribution a ON a.pr_id = f.pr_id "
                   f"WHERE $__timeFilter(f.merged_at) AND f.{TEAM} GROUP BY f.pr_id, f.merged_at, f.repo, f.number, f.title, "
@@ -217,44 +217,44 @@ def impact() -> Board:
 
 
 def code() -> Board:
-    b = Board("ai-code", "IA · Código gerado e qualidade", "% de código IA (Git AI), sobrevivência das linhas e change failure rate.",
+    b = Board("ai-code", "AI · Generated code & quality", "Share of AI code (Git AI), line survival and change failure rate.",
               [high_only_var()])
     base = f"FROM v_pr_facts WHERE $__timeFilter(merged_at) AND {TEAM} AND added_lines > 0"
-    b.text("A **% de código IA** vem das notas do Git AI e só cobre commits feitos com o Git AI instalado — ver a cobertura ao lado "
-           "antes de tirar conclusões. **Sobrevivência** = linhas de cada PR que ainda existem no ramo principal (git blame). "
-           "Nunca olhar para a % de IA sem a sobrevivência ao lado.")
+    b.text("The **share of AI code** comes from Git AI notes and only covers commits made with Git AI installed. Check the "
+           "coverage next to it before drawing conclusions. **Survival** = lines from each PR that still exist on the main branch "
+           "(git blame). Never look at the AI share without survival next to it.")
     b.add([
-        (stat("% de código IA", f"SELECT sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) {base}"), 6),
-        (stat("Cobertura do Git AI", f"SELECT sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) "
+        (stat("AI code share", f"SELECT sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) {base}"), 6),
+        (stat("Git AI coverage", f"SELECT sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) "
               f"FROM v_pr_facts WHERE $__timeFilter(merged_at) AND {TEAM}",
-              desc="Commits com nota do Git AI ÷ commits. Abaixo de ~80% a % de IA não é representativa."), 6),
-        (stat("Sobrevivência a 30+ dias (IA ≥50%)", f"SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 "
-              f"AND grupo = 'Maioria IA (>=50%)' AND {TEAM}"), 6),
-        (stat("Sobrevivência a 30+ dias (sem IA)", f"SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 "
-              f"AND grupo = 'Sem IA' AND {TEAM}"), 6),
+              desc="Commits with a Git AI note ÷ commits. Below ~80% the AI share is not representative."), 6),
+        (stat("Survival at 30+ days (AI ≥50%)", f"SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 "
+              f"AND ai_group = 'Mostly AI (>=50%)' AND {TEAM}"), 6),
+        (stat("Survival at 30+ days (no AI)", f"SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 "
+              f"AND ai_group = 'No AI' AND {TEAM}"), 6),
     ], h=5)
     b.add([
-        (timeseries("% de código IA por semana", f"SELECT merged_week AS time, team AS metric, "
+        (timeseries("AI code share per week", f"SELECT merged_week AS time, team AS metric, "
                     f"sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS value {base} GROUP BY 1,2 ORDER BY 1", minv=0, maxv=1), 12),
-        (table("Por repositório", f"SELECT repo AS \"Repo\", sum(ai_lines) AS \"Linhas IA\", sum(human_lines) AS \"Linhas humanas\", "
-               f"sum(unknown_lines) AS \"Sem atestação\", sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS \"% IA\", "
-               f"sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) AS \"Cobertura\" "
+        (table("By repository", f"SELECT repo AS \"Repo\", sum(ai_lines) AS \"AI lines\", sum(human_lines) AS \"Human lines\", "
+               f"sum(unknown_lines) AS \"Unattested\", sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS \"AI share\", "
+               f"sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) AS \"Coverage\" "
                f"FROM v_pr_facts WHERE $__timeFilter(merged_at) AND {TEAM} GROUP BY 1 ORDER BY 2 DESC",
-               units={"% IA": "percentunit", "Cobertura": "percentunit"}), 12),
+               units={"AI share": "percentunit", "Coverage": "percentunit"}), 12),
     ], h=9)
-    b.row("Qualidade")
+    b.row("Quality")
     b.add([
-        (barchart("Sobrevivência das linhas por idade do PR",
-                  f"SELECT CASE WHEN age_days < 14 THEN '0–13 dias' WHEN age_days < 30 THEN '14–29 dias' "
-                  f"WHEN age_days < 60 THEN '30–59 dias' WHEN age_days < 90 THEN '60–89 dias' ELSE '90+ dias' END AS \"Idade\", "
-                  f"avg(survival_rate) FILTER (WHERE grupo = 'Maioria IA (>=50%)') AS \"Maioria IA\", "
-                  f"avg(survival_rate) FILTER (WHERE grupo = 'Parte IA (<50%)') AS \"Parte IA\", "
-                  f"avg(survival_rate) FILTER (WHERE grupo = 'Sem IA') AS \"Sem IA\" "
+        (barchart("Line survival by PR age",
+                  f"SELECT CASE WHEN age_days < 14 THEN '0–13 days' WHEN age_days < 30 THEN '14–29 days' "
+                  f"WHEN age_days < 60 THEN '30–59 days' WHEN age_days < 90 THEN '60–89 days' ELSE '90+ days' END AS \"Age\", "
+                  f"avg(survival_rate) FILTER (WHERE ai_group = 'Mostly AI (>=50%)') AS \"Mostly AI\", "
+                  f"avg(survival_rate) FILTER (WHERE ai_group = 'Partly AI (<50%)') AS \"Partly AI\", "
+                  f"avg(survival_rate) FILTER (WHERE ai_group = 'No AI') AS \"No AI\" "
                   f"FROM v_survival WHERE {TEAM} GROUP BY 1 ORDER BY 1", unit="percentunit",
-                  desc="Meia-vida = idade em que a sobrevivência cai abaixo de 50%. Retrabalho a 30 dias = 1 − sobrevivência aos 30–59 dias."), 12),
-        (timeseries("Change failure rate (produção)", "SELECT week AS time, grupo AS metric, cfr AS value FROM v_cfr_weekly "
+                  desc="Half-life = the age at which survival drops below 50%. Rework at 30 days = 1 − survival at 30–59 days."), 12),
+        (timeseries("Change failure rate (production)", "SELECT week AS time, ai_group AS metric, cfr AS value FROM v_cfr_weekly "
                     "WHERE $__timeFilter(week) ORDER BY 1", minv=0, maxv=1,
-                    desc="Deploys com incidente ÷ deploys. 'Com IA' = o deploy inclui pelo menos um PR assistido (alta confiança)."), 12),
+                    desc="Deployments with an incident ÷ deployments. 'With AI' = the deployment includes at least one AI-assisted PR (high confidence)."), 12),
     ], h=9)
     return b
 
@@ -263,7 +263,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for board in (adoption(), impact(), code()):
         (OUT / f"{board.uid}.json").write_text(json.dumps(board.json(), indent=2, ensure_ascii=False) + "\n")
-        print("escrito", board.uid)
+        print("written", board.uid)
 
 
 if __name__ == "__main__":

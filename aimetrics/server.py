@@ -30,9 +30,9 @@ def _check(expected: str | None, authorization: str | None) -> None:
     if not hmac.compare_digest(given.encode(), expected.encode()):
         # Nunca registar o token; só o suficiente para perceber a diferença
         if not raw:
-            log.warning("401: pedido sem header Authorization")
+            log.warning("401: request without an Authorization header")
         else:
-            log.warning("401: token diferente (recebido %d caracteres, começa por %r; esperado %d caracteres, começa por %r)",
+            log.warning("401: token mismatch (received %d characters starting with %r; expected %d characters starting with %r)",
                         len(given), given[:2], len(expected), expected[:2])
         raise HTTPException(401, "token inválido")
 
@@ -62,7 +62,7 @@ async def otel_metrics(request: Request):
         buckets = otel.parse(payload, otel.make_series_delta(conn), stats)
         otel.store(conn, buckets)
         conn.commit()
-    log.info("otel: %d pontos, %d usados, %d sem user.email, emails=%s, métricas=%s",
+    log.info("otel: %d points, %d used, %d without user.email, emails=%s, metrics=%s",
              stats["points"], stats["used"], stats["no_email"],
              sorted({e for e, _ in buckets}), sorted(stats["metrics"]))
     return {"partialSuccess": {}}
