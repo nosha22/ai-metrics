@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aimetrics
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir no .env}
+      POSTGRES_DB: aimetrics
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?definir no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aimetrics"]
+      interval: 5s
+      retries: 10
+
+  # Recetor OTLP do Claude Code + webhooks de deploys e incidentes
+  api:
+    build: .
+    restart: unless-stopped
+    command: ["serve", "--port", "8080"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://aimetrics:${POSTGRES_PASSWORD}@db:5432/aimetrics
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      db: { condition: service_healthy }
+      scheduler: { condition: service_started }
+
+  # Corre todos os passos de recolha uma vez por dia (e ao arrancar)
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: ["scheduler", "--hour", "3"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://aimetrics:${POSTGRES_PASSWORD}@db:5432/aimetrics
+      ORG_FILE: /app/config/organization.yml
+      REPOS_DIR: /data/repos
+    volumes:
+      - ./config:/app/config:ro
+      - repos:/data/repos
+    depends_on:
+      db: { condition: service_healthy }
+
+  grafana:
+    image: grafana/grafana-oss:11.6.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?definir no .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  repos:
+  grafana:

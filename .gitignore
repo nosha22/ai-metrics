@@ -1,0 +1,6 @@
+.env
+config/organization.yml
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/

@@ -1,0 +1,16 @@
+# Exemplo: acrescentar ao fim do workflow de deploy de produção de cada repo,
+# para alimentar o change failure rate. Alternativa: usar a API de Deployments do GitHub
+# (o coletor importa-a sozinho em `aimetrics sync deployments`).
+#
+# Secrets necessários no repo: AI_METRICS_URL, AI_METRICS_EVENTS_TOKEN
+      - name: Report deployment to AI metrics
+        if: success()
+        run: |
+          curl -fsS -X POST "$AI_METRICS_URL/events/deployment" \
+            -H "Authorization: Bearer $AI_METRICS_EVENTS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"id\": \"${GITHUB_REPOSITORY}-${GITHUB_RUN_ID}\", \"repo\": \"${GITHUB_REPOSITORY}\",
+                 \"sha\": \"${GITHUB_SHA}\", \"previous_sha\": \"${{ github.event.before }}\"}"
+        env:
+          AI_METRICS_URL: ${{ secrets.AI_METRICS_URL }}
+          AI_METRICS_EVENTS_TOKEN: ${{ secrets.AI_METRICS_EVENTS_TOKEN }}

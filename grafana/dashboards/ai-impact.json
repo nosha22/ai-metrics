@@ -1,0 +1,707 @@
+{
+  "uid": "ai-impact",
+  "title": "IA · Impacto nos PRs",
+  "description": "PRs assistidos por IA vs restantes: throughput, cycle time, review e tamanho.",
+  "tags": [
+    "ai-metrics"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "refresh": "",
+  "templating": {
+    "list": [
+      {
+        "name": "team",
+        "label": "Equipa",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "aimetrics-pg"
+        },
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "query": "SELECT name FROM teams UNION SELECT '(sem equipa)' ORDER BY 1",
+        "definition": "SELECT name FROM teams"
+      },
+      {
+        "name": "high_only",
+        "label": "Só alta confiança",
+        "type": "custom",
+        "query": "false,true",
+        "current": {
+          "text": "false",
+          "value": "false"
+        },
+        "options": [
+          {
+            "text": "false",
+            "value": "false",
+            "selected": true
+          },
+          {
+            "text": "true",
+            "value": "true",
+            "selected": false
+          }
+        ],
+        "description": "true = ignora a regra das 24 h (menos falsos positivos, alguma sub-contagem)"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "",
+      "options": {
+        "mode": "markdown",
+        "content": "Um PR é **assistido** se um commit tem co-autor, trailer ou autor de IA, se tem a label da ferramenta, se o Git AI registou linhas IA, ou (baixa confiança) se o autor usou a ferramenta nas 24 h antes de um commit. Ver o motivo de cada PR na tabela no fim. Mediana e p75 limitam o efeito de outliers."
+      },
+      "id": 1,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "PRs com IA",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(CASE WHEN CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END = 'Com IA' THEN 1 ELSE 0 END) FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 2,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "PRs de agentes",
+      "description": "PR ou 1.º commit criado por um agente",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(cloud_agent::int) FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 3,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "PRs com review de IA",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(review_agent::int) FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 4,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "PRs merged",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 5,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Share de PRs com IA por semana",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT merged_week AS time, avg(CASE WHEN CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END = 'Com IA' THEN 1 ELSE 0 END) AS \"PRs com IA\", avg(cloud_agent::int) AS \"PRs de agentes\", avg(review_agent::int) AS \"Review de IA\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 6,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput (PRs merged por semana)",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT merged_week AS time, CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END AS metric, count(*) AS value FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Cycle time: mediana e p75",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END AS \"Grupo\", percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_h) AS \"Mediana\", percentile_cont(0.75) WITHIN GROUP (ORDER BY cycle_time_h) AS \"p75\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) AND cycle_time_h IS NOT NULL GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "xTickLabelRotation": 0,
+        "groupWidth": 0.7,
+        "barWidth": 0.9
+      },
+      "id": 8,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 17
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Tempo até 1.ª review humana: mediana e p75",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END AS \"Grupo\", percentile_cont(0.5) WITHIN GROUP (ORDER BY review_time_h) AS \"Mediana\", percentile_cont(0.75) WITHIN GROUP (ORDER BY review_time_h) AS \"p75\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) AND review_time_h IS NOT NULL GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "xTickLabelRotation": 0,
+        "groupWidth": 0.7,
+        "barWidth": 0.9
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 17
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "barchart",
+      "title": "Batch size (linhas +/−): mediana e p75",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END AS \"Grupo\", percentile_cont(0.5) WITHIN GROUP (ORDER BY batch_size) AS \"Mediana\", percentile_cont(0.75) WITHIN GROUP (ORDER BY batch_size) AS \"p75\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) AND batch_size IS NOT NULL GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "xTickLabelRotation": 0,
+        "groupWidth": 0.7,
+        "barWidth": 0.9
+      },
+      "id": 10,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 17
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Cycle time mediano por semana",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT merged_week AS time, CASE WHEN (${high_only} AND ai_assisted_high) OR (NOT ${high_only} AND ai_assisted) THEN 'Com IA' ELSE 'Sem IA' END AS metric, percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_h) AS value FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 11,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Por ferramenta",
+      "description": "Um PR com duas ferramentas conta uma vez em cada (como no Swarmia).",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT COALESCE(t, 'Sem IA') AS \"Ferramenta\", count(*) AS \"PRs\", percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_h) AS \"Cycle time (mediana)\", percentile_cont(0.5) WITHIN GROUP (ORDER BY review_time_h) AS \"Review (mediana)\", percentile_cont(0.5) WITHIN GROUP (ORDER BY batch_size) AS \"Batch size (mediana)\" FROM v_pr_facts LEFT JOIN LATERAL unnest(NULLIF(ai_tools, '{}')) t ON TRUE WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cycle time (mediana)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Review (mediana)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      },
+      "id": 12,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Detalhe",
+      "id": 13,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "PRs e motivo da atribuição",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT f.merged_at AS \"Merged\", f.repo || '#' || f.number AS \"PR\", f.title AS \"Título\", f.person AS \"Pessoa\", string_agg(a.tool || ' · ' || a.mode || ' · ' || a.confidence || ': ' || a.reason, E'\\n' ORDER BY a.tool) AS \"Atribuição\", f.cycle_time_h AS \"Cycle time\", f.batch_size AS \"Batch\" FROM v_pr_facts f LEFT JOIN pr_ai_attribution a ON a.pr_id = f.pr_id WHERE $__timeFilter(f.merged_at) AND f.team IN (${team:sqlstring}) GROUP BY f.pr_id, f.merged_at, f.repo, f.number, f.title, f.person, f.cycle_time_h, f.batch_size ORDER BY 1 DESC LIMIT 500"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cycle time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      },
+      "id": 14,
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    }
+  ]
+}

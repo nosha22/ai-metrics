@@ -1,0 +1,639 @@
+{
+  "uid": "ai-adoption",
+  "title": "IA · Adoção",
+  "description": "Licenças, utilizadores ativos e licenças paradas (definições do Swarmia).",
+  "tags": [
+    "ai-metrics"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "refresh": "",
+  "templating": {
+    "list": [
+      {
+        "name": "team",
+        "label": "Equipa",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "aimetrics-pg"
+        },
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "query": "SELECT name FROM teams UNION SELECT '(sem equipa)' ORDER BY 1",
+        "definition": "SELECT name FROM teams"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "",
+      "options": {
+        "mode": "markdown",
+        "content": "**Ativo** = aceitou código ou usou chat na semana. **Com licença** = teve licença em algum momento da semana; para fontes sem lista de licenças (OpenTelemetry) conta só quem esteve ativo."
+      },
+      "id": 1,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Taxa de licenças",
+      "description": "Membros com licença ÷ membros, semana atual, todas as ferramentas somadas",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT sum(enabled)::numeric / NULLIF(sum(members),0) FROM v_adoption_weekly WHERE week = date_trunc('week', current_date)::date AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 2,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Taxa de atividade (média)",
+      "description": "Média semanal de ativos ÷ membros. Uma pessoa ativa em duas ferramentas conta uma vez por equipa (máximo).",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(r) FROM (SELECT week, sum(weekly_active)::numeric / NULLIF(sum(members),0) r FROM (SELECT week, team, max(weekly_active) weekly_active, max(members) members FROM v_adoption_weekly WHERE week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND team IN (${team:sqlstring}) GROUP BY week, team) x GROUP BY week) w"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 3,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Licenças paradas",
+      "description": "Licença ativa sem atividade nos últimos 28 dias",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM v_idle_seats WHERE team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 4,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Contas por ligar",
+      "description": "Correr `aimetrics org unlinked` e acrescentar ao organization.yml",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) FROM identities WHERE person_id IS NULL"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 5,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Taxa de atividade semanal por ferramenta",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT week AS time, tool AS metric, sum(weekly_active)::numeric / NULLIF(sum(members),0) AS value FROM v_adoption_weekly WHERE week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 6,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ativos por semana",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT week AS time, tool AS metric, sum(weekly_active) AS value FROM v_adoption_weekly WHERE week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Adoção por equipa (período)",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT team AS \"Equipa\", tool AS \"Ferramenta\", max(members) AS \"Membros\", max(enabled)::numeric / NULLIF(max(members),0) AS \"Taxa de licenças\", avg(weekly_active::numeric / NULLIF(members,0)) AS \"Taxa de atividade\" FROM v_adoption_weekly WHERE week >= date_trunc('week', $__timeFrom()::date) AND week <= $__timeTo()::date AND team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1,2"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Taxa de licenças"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Taxa de atividade"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      },
+      "id": 8,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Licenças paradas",
+      "description": "Rever com cada pessoa antes de retirar a licença",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT team AS \"Equipa\", name AS \"Pessoa\", tool AS \"Ferramenta\", valid_from AS \"Licença desde\", last_active_day AS \"Último dia ativo\" FROM v_idle_seats WHERE team IN (${team:sqlstring}) ORDER BY 1,2"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Atividade",
+      "id": 10,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Taxa de aceitação de ações",
+      "description": "Aceites ÷ (aceites + rejeitadas). Não mede código entregue.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT date_trunc('week', a.day) AS time, a.tool AS metric, sum(a.actions_accepted)::numeric / NULLIF(sum(a.actions_accepted + a.actions_rejected),0) AS value FROM v_ai_activity a JOIN v_members m USING (person_id) WHERE $__timeFilter(a.day) AND m.team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 11,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 27
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Linhas geradas pela IA (não necessariamente commitadas)",
+      "description": "O Swarmia avisa: alguém pode aceitar 200 linhas para acabar num PR de 10. Usar o dashboard Git AI para código entregue.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT date_trunc('week', a.day) AS time, a.tool AS metric, sum(a.lines_added) AS value FROM v_ai_activity a JOIN v_members m USING (person_id) WHERE $__timeFilter(a.day) AND m.team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 12,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 27
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Custo estimado (USD)",
+      "description": "Só Claude Code (Analytics API e OpenTelemetry). A Cursor API diária não dá custo.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT date_trunc('week', a.day) AS time, a.tool AS metric, sum(a.cost_usd) AS value FROM v_ai_activity a JOIN v_members m USING (person_id) WHERE $__timeFilter(a.day) AND m.team IN (${team:sqlstring}) GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 13,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 27
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    }
+  ]
+}

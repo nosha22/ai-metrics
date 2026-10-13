@@ -1,0 +1,40 @@
+# Copiar para config/organization.yml e preencher.
+# Este ficheiro é a fonte de verdade para equipas, pessoas e o mapa de identidades.
+# Correr `aimetrics org sync` depois de o alterar.
+
+teams:
+  - name: Mobile
+  - name: Backend
+
+repositories:
+  - name: nosha22/outsmart-android     # owner/repo no GitHub
+    team: Mobile
+  - name: nosha22/outsmart-api
+    team: Backend
+
+people:
+  - name: Sérgio Cruz
+    team: Mobile
+    joined_on: 2020-01-01
+    identities:
+      github: sergio-cruz              # login GitHub
+      git_email:                       # todos os emails usados nos commits
+        - sergio@outsmart.example
+      claude: sergio@outsmart.example  # email da conta Claude
+      cursor: sergio@outsmart.example  # email da conta Cursor
+    licenses:
+      - tool: claude_code
+        from: 2026-09-01
+      - tool: cursor
+        from: 2026-06-01
+        # to: 2026-10-01               # data de fim, se a licença foi removida
+
+# Padrões de deteção. Os valores por omissão estão em aimetrics/detection.py;
+# aqui só se acrescentam padrões (regex, sem distinção de maiúsculas).
+detection:
+  claude_code:
+    coauthor: []
+    agents: []
+  cursor:
+    trailers: []
+    agents: []

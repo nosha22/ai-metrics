@@ -1,0 +1,516 @@
+{
+  "uid": "ai-code",
+  "title": "IA · Código gerado e qualidade",
+  "description": "% de código IA (Git AI), sobrevivência das linhas e change failure rate.",
+  "tags": [
+    "ai-metrics"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "refresh": "",
+  "templating": {
+    "list": [
+      {
+        "name": "team",
+        "label": "Equipa",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "aimetrics-pg"
+        },
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "query": "SELECT name FROM teams UNION SELECT '(sem equipa)' ORDER BY 1",
+        "definition": "SELECT name FROM teams"
+      },
+      {
+        "name": "high_only",
+        "label": "Só alta confiança",
+        "type": "custom",
+        "query": "false,true",
+        "current": {
+          "text": "false",
+          "value": "false"
+        },
+        "options": [
+          {
+            "text": "false",
+            "value": "false",
+            "selected": true
+          },
+          {
+            "text": "true",
+            "value": "true",
+            "selected": false
+          }
+        ],
+        "description": "true = ignora a regra das 24 h (menos falsos positivos, alguma sub-contagem)"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "",
+      "options": {
+        "mode": "markdown",
+        "content": "A **% de código IA** vem das notas do Git AI e só cobre commits feitos com o Git AI instalado — ver a cobertura ao lado antes de tirar conclusões. **Sobrevivência** = linhas de cada PR que ainda existem no ramo principal (git blame). Nunca olhar para a % de IA sem a sobrevivência ao lado."
+      },
+      "id": 1,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "% de código IA",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) AND added_lines > 0"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 2,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Cobertura do Git AI",
+      "description": "Commits com nota do Git AI ÷ commits. Abaixo de ~80% a % de IA não é representativa.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 3,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Sobrevivência a 30+ dias (IA ≥50%)",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 AND grupo = 'Maioria IA (>=50%)' AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 4,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Sobrevivência a 30+ dias (sem IA)",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT avg(survival_rate) FROM v_survival WHERE age_days >= 30 AND grupo = 'Sem IA' AND team IN (${team:sqlstring})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "id": 5,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "% de código IA por semana",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT merged_week AS time, team AS metric, sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS value FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) AND added_lines > 0 GROUP BY 1,2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 6,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Por repositório",
+      "description": "",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT repo AS \"Repo\", sum(ai_lines) AS \"Linhas IA\", sum(human_lines) AS \"Linhas humanas\", sum(unknown_lines) AS \"Sem atestação\", sum(ai_lines)::numeric / NULLIF(sum(added_lines),0) AS \"% IA\", sum(commits_with_note)::numeric / NULLIF(sum(commit_count),0) AS \"Cobertura\" FROM v_pr_facts WHERE $__timeFilter(merged_at) AND team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 2 DESC"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "% IA"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cobertura"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      },
+      "id": 7,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Qualidade",
+      "id": 8,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "panels": []
+    },
+    {
+      "type": "barchart",
+      "title": "Sobrevivência das linhas por idade do PR",
+      "description": "Meia-vida = idade em que a sobrevivência cai abaixo de 50%. Retrabalho a 30 dias = 1 − sobrevivência aos 30–59 dias.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN age_days < 14 THEN '0–13 dias' WHEN age_days < 30 THEN '14–29 dias' WHEN age_days < 60 THEN '30–59 dias' WHEN age_days < 90 THEN '60–89 dias' ELSE '90+ dias' END AS \"Idade\", avg(survival_rate) FILTER (WHERE grupo = 'Maioria IA (>=50%)') AS \"Maioria IA\", avg(survival_rate) FILTER (WHERE grupo = 'Parte IA (<50%)') AS \"Parte IA\", avg(survival_rate) FILTER (WHERE grupo = 'Sem IA') AS \"Sem IA\" FROM v_survival WHERE team IN (${team:sqlstring}) GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "xTickLabelRotation": 0,
+        "groupWidth": 0.7,
+        "barWidth": 0.9
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Change failure rate (produção)",
+      "description": "Deploys com incidente ÷ deploys. 'Com IA' = o deploy inclui pelo menos um PR assistido (alta confiança).",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "aimetrics-pg"
+          },
+          "rawQuery": true,
+          "editorMode": "code",
+          "format": "time_series",
+          "rawSql": "SELECT week AS time, grupo AS metric, cfr AS value FROM v_cfr_weekly WHERE $__timeFilter(week) ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 10,
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "aimetrics-pg"
+      }
+    }
+  ]
+}
