@@ -1,7 +1,7 @@
 from aimetrics.ai_tools import claude_record_to_activity, cursor_record_to_activity
 from aimetrics.otel import CUMULATIVE, parse
 
-# Exemplo da documentação da Claude Code Analytics API
+# Example from the Claude Code Analytics API documentation
 CLAUDE_REC = {
     "date": "2025-09-08T00:00:00Z",
     "actor": {"type": "user_actor", "email_address": "developer@company.com"},
@@ -21,7 +21,7 @@ def test_claude_record():
     assert a["day"] == "2025-09-08"
     assert a["actions_accepted"] == 68 and a["actions_rejected"] == 8
     assert a["tokens"] == 150000
-    assert a["cost_usd"] == 1.13  # a API devolve cêntimos
+    assert a["cost_usd"] == 1.13  # the API returns cents
     assert a["is_active"]
 
 
@@ -66,7 +66,7 @@ def test_otel_delta():
                                              _dp(3, NS, user_email="Dev@X.pt", type="removed")]),
         ("claude_code.code_edit_tool.decision", [_dp(2, NS, user_email="dev@x.pt", decision="accept", tool_name="Edit")]),
         ("claude_code.session.count", [_dp(1, NS, user_email="dev@x.pt")]),
-        ("claude_code.lines_of_code.count", [_dp(5, NS)]),  # sem email: ignorado
+        ("claude_code.lines_of_code.count", [_dp(5, NS)]),  # no email: ignored
     ])
     out = parse(payload, lambda *a: 0)
     b = out[("dev@x.pt", "2025-10-09")]

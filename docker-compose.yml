@@ -4,9 +4,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: aimetrics
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
       POSTGRES_DB: aimetrics
-      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?definir no .env}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set it in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -15,7 +15,7 @@ services:
       interval: 5s
       retries: 10
 
-  # Recetor OTLP do Claude Code + webhooks de deploys e incidentes
+  # Claude Code OTLP receiver + deployment and incident webhooks
   api:
     build: .
     restart: unless-stopped
@@ -29,7 +29,7 @@ services:
       db: { condition: service_healthy }
       scheduler: { condition: service_started }
 
-  # Corre todos os passos de recolha uma vez por dia (e ao arrancar)
+  # Runs every collection step once a day (and on start-up)
   scheduler:
     build: .
     restart: unless-stopped
@@ -49,7 +49,7 @@ services:
     image: grafana/grafana-oss:11.6.0
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?definir no .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set it in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
     ports:

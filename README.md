@@ -1,142 +1,143 @@
 # AI metrics — Outsmart
 
-Métricas de adoção e impacto de IA na engenharia da Outsmart, ao estilo do Swarmia, alojadas no servidor interno.
+Swarmia-style metrics for AI adoption and impact in Outsmart engineering, self-hosted on our own server.
 
-Responde a quatro perguntas:
+It answers four questions:
 
-| Pergunta | Dashboard | Fonte |
+| Question | Dashboard | Source |
 | --- | --- | --- |
-| Quem usa as ferramentas de IA? | **AI · Adoption** | Claude Code (Analytics API ou OpenTelemetry), Cursor Admin API, `organization.yml` |
-| Como usa? | **AI · Adoption** → Activity | as mesmas |
-| Que efeito tem nos PRs? | **AI · PR impact** | GitHub (PRs, commits, reviews) + regras de deteção |
-| Quanto do código é IA, e aguenta-se? | **AI · Generated code & quality** | notas do Git AI, `git blame`, deploys e incidentes |
+| Who uses the AI tools? | **AI · Adoption** | Claude Code (Analytics API or OpenTelemetry), Cursor Admin API, `organization.yml` |
+| How do they use them? | **AI · Adoption** → Activity | same as above |
+| What effect do they have on pull requests? | **AI · PR impact** | GitHub (PRs, commits, reviews) + detection rules |
+| How much of the code is AI-written, and does it hold up? | **AI · Generated code & quality** | Git AI notes, `git blame`, deployments and incidents |
 
-As regras de deteção e as definições das métricas seguem a documentação pública do Swarmia
-([deteção](https://help.swarmia.com/features/ai-tools/ai-tool-detection-and-filters),
-[adoção](https://help.swarmia.com/features/ai-tools/ai-adoption)). Estão em `aimetrics/detection.py` e `db/views.sql`.
+The detection rules and metric definitions follow Swarmia's public documentation
+([detection](https://help.swarmia.com/features/ai-tools/ai-tool-detection-and-filters),
+[adoption](https://help.swarmia.com/features/ai-tools/ai-adoption)). They live in `aimetrics/detection.py` and `db/views.sql`.
 
-## Arquitetura
+## Architecture
 
 ```
 GitHub API ─┐
 Claude API ─┤                     ┌──────────────┐
-Cursor API ─┼─► scheduler (diário)─►              │
+Cursor API ─┼─► scheduler (daily) ─►             │
 Git AI     ─┘                     │   Postgres   ├──► Grafana (3 dashboards)
-Claude Code ─OTLP─► api (:8080) ──►  factos +    │
+Claude Code ─OTLP─► api (:8080) ──►  facts +     │
 CI deploys ──webhook─► api ───────►   views      │
                                   └──────────────┘
 ```
 
-* `scheduler` corre `aimetrics run` todos os dias às 03:07 UTC (e ao arrancar).
-* `api` recebe a telemetria do Claude Code e os eventos de deploy/incidente.
-* As fontes só gravam factos brutos; a atribuição e as métricas são calculadas por cima. Uma regra nova recalcula o histórico com `aimetrics attribute --all`.
+* `scheduler` runs `aimetrics run` every day at 03:07 UTC (and once on start-up).
+* `api` receives Claude Code telemetry and deployment/incident events.
+* Sources only store raw facts; attribution and metrics are computed on top of them. After changing a rule, `aimetrics attribute --all` recalculates the whole history.
 
-## Testar localmente
+## Try it locally
 
-Guia passo a passo (em inglês) para correr tudo na tua máquina com a tua conta Claude e um repo teu:
+Step-by-step guide to run everything on your machine with your own Claude account and one of your repositories:
 [docs/local-setup.md](docs/local-setup.md).
 
-## Instalação no servidor
+## Server installation
 
 ```bash
 git clone https://github.com/nosha22/ai-metrics.git && cd ai-metrics
-cp .env.example .env                                  # preencher (valores no 1Password)
-cp config/organization.example.yml config/organization.yml   # equipas, pessoas, repos
+cp .env.example .env                                         # fill in (keep values in the password manager)
+cp config/organization.example.yml config/organization.yml   # teams, people, repositories
 docker compose up -d --build
 ```
 
-Grafana em `http://<servidor>:3000` (utilizador `admin`, password `GRAFANA_ADMIN_PASSWORD`), pasta **AI**.
-Pôr o Grafana e a porta 8080 atrás do reverse proxy com HTTPS antes de ligar o OpenTelemetry.
+Grafana runs on `http://<server>:3000` (user `admin`, password from `GRAFANA_ADMIN_PASSWORD`), folder **AI**.
+Put Grafana and port 8080 behind a reverse proxy with HTTPS before connecting OpenTelemetry. To keep both ports
+off the internet, set `API_PORT=127.0.0.1:8080` and `GRAFANA_PORT=127.0.0.1:3000` in `.env`.
 
-Comandos úteis (dentro do contentor `scheduler`):
+Useful commands (inside the `scheduler` container):
 
 ```bash
-docker compose exec scheduler python -m aimetrics run            # recolha completa agora
-docker compose exec scheduler python -m aimetrics sync github --days 180   # backfill
-docker compose exec scheduler python -m aimetrics org unlinked   # contas sem pessoa associada
+docker compose exec scheduler python -m aimetrics run                     # full collection now
+docker compose exec scheduler python -m aimetrics sync github --days 180  # backfill
+docker compose exec scheduler python -m aimetrics org unlinked            # accounts not mapped to a person
 docker compose exec scheduler python -m aimetrics attribute --all
 ```
 
-## Ligar as fontes
+## Connecting the sources
 
-### Fase 1 — GitHub (obrigatório)
+### Phase 1 — GitHub (required)
 
-Fine-grained token **só de leitura** nos repos a medir: *Pull requests*, *Contents*, *Deployments*, *Metadata*.
-Pôr em `GITHUB_TOKEN` e listar os repos em `organization.yml`.
+A **read-only** fine-grained token on the repositories to measure: *Pull requests*, *Contents*, *Deployments*, *Metadata*.
+Put it in `GITHUB_TOKEN` and list the repositories in `organization.yml`.
 
-Para as regras de alta confiança funcionarem, as ferramentas têm de manter a atribuição nos commits:
+For the high-confidence rules to work, the tools must keep their attribution in commits:
 
-* **Claude Code**: não desligar as [attribution settings](https://code.claude.com/docs/en/settings#attribution-settings)
+* **Claude Code**: do not disable the [attribution settings](https://code.claude.com/docs/en/settings#attribution-settings)
   (`Co-Authored-By: Claude <noreply@anthropic.com>`).
-* **Cursor**: manter o trailer `Made-with: Cursor`.
+* **Cursor**: keep the `Made-with: Cursor` trailer.
 
-### Fase 2 — Claude Code e Cursor
+### Phase 2 — Claude Code and Cursor
 
-**Claude Code** — depende de como a equipa paga:
+**Claude Code** — depends on how the team pays:
 
-| Plano | Como ligar |
+| Plan | How to connect |
 | --- | --- |
-| Claude Console (API) | Admin API key em `ANTHROPIC_ADMIN_KEY`. Dá 30 dias de histórico. |
-| Team / Enterprise (subscrição) | OpenTelemetry: copiar `deploy/claude-code/managed-settings.json` para as managed settings em claude.ai (admin → Claude Code), com o URL público da `api` e o `OTEL_INGEST_TOKEN`. Sem histórico; não mostra licenças paradas. |
+| Claude Console (API billing) | Admin API key in `ANTHROPIC_ADMIN_KEY`. Includes 30 days of history. |
+| Team / Enterprise (subscription) | OpenTelemetry: copy `deploy/claude-code/managed-settings.json` into the managed settings on claude.ai (admin → Claude Code), with the public URL of `api` and the `OTEL_INGEST_TOKEN`. No history; does not show idle seats. |
 
-As duas podem coexistir; quando a mesma pessoa aparece nas duas no mesmo dia, conta a fonte com mais uso.
-O recetor só aceita `http/json` com temporalidade `delta` (também converte `cumulative`).
+Both can run side by side; when the same person appears in both on the same day, the source with more usage wins.
+The receiver accepts only `http/json` with `delta` temporality (it also converts `cumulative`).
 
-**Cursor** — Admin API key em `CURSOR_ADMIN_KEY`. Os membros da equipa Cursor passam a ser as licenças
-(`--no-licenses` para gerir as licenças só no YAML).
+**Cursor** — Admin API key in `CURSOR_ADMIN_KEY`. Members of the Cursor team become the licenses
+(use `--no-licenses` to manage licenses only in the YAML).
 
-Depois de ligar, correr `aimetrics org unlinked` e acrescentar as contas em falta ao `organization.yml`.
-Emails iguais entre fontes ligam-se sozinhos.
+After connecting, run `aimetrics org unlinked` and add any missing accounts to `organization.yml`.
+Identical emails across sources are linked automatically.
 
-### Fase 3 — Git AI (% de código IA)
+### Phase 3 — Git AI (share of AI code)
 
-1. Instalar o Git AI nas máquinas da equipa: `curl -sSL https://usegitai.com/install.sh | bash`
-   (sem chave de telemetria: a atribuição fica só nas notas do git).
-2. Em cada repo, adicionar `deploy/github/git-ai.yaml` como `.github/workflows/git-ai.yaml`
-   (ou correr `git ai ci github install`). Sem isto, o *squash merge* do GitHub perde as notas.
-3. O `scheduler` faz clone dos repos (sem checkout), lê `refs/notes/ai` com `git ai stats <sha> --json`
-   e mede a sobrevivência das linhas de cada PR com `git blame`, uma vez por semana, durante 180 dias.
+1. Install Git AI on the team's machines: `curl -sSL https://usegitai.com/install.sh | bash`
+   (without a telemetry key: attribution stays in git notes only).
+2. In each repository, add `deploy/github/git-ai.yaml` as `.github/workflows/git-ai.yaml`
+   (or run `git ai ci github install`). Without it, GitHub's *squash merge* drops the notes.
+3. The `scheduler` clones the repositories (no checkout), reads `refs/notes/ai` with `git ai stats <sha> --json`
+   and measures each PR's line survival with `git blame`, once a week, for 180 days.
 
-O dashboard mostra a **cobertura** (commits com nota ÷ commits). Abaixo de ~80% a % de IA não é representativa.
+The dashboard shows the **coverage** (commits with a note ÷ commits). Below ~80% the AI share is not representative.
 
-### Fase 4 — Deploys e incidentes (change failure rate)
+### Phase 4 — Deployments and incidents (change failure rate)
 
-* **Deploys**: se usam a API de Deployments do GitHub, o coletor importa-os sozinho. Senão, acrescentar
-  `deploy/github/report-deployment.yaml` ao workflow de deploy.
-* **Incidentes**: `POST /events/incident` com `EVENTS_TOKEN`:
+* **Deployments**: if you use GitHub's Deployments API, the collector imports them on its own. Otherwise, add
+  `deploy/github/report-deployment.yaml` to the deployment workflow.
+* **Incidents**: `POST /events/incident` with `EVENTS_TOKEN`:
 
 ```bash
 curl -X POST https://<api>/events/incident -H "Authorization: Bearer $EVENTS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"id":"INC-42","title":"Login falha","opened_at":"2026-10-13T10:00:00Z","deployment_id":"nosha22/outsmart-api-123"}'
+  -d '{"id":"INC-42","title":"Login fails","opened_at":"2026-10-13T10:00:00Z","deployment_id":"nosha22/outsmart-api-123"}'
 ```
 
-## Regras de deteção
+## Detection rules
 
-| Modo | Regra | Confiança |
+| Mode | Rule | Confidence |
 | --- | --- | --- |
-| Assistido | Commit escrito ou co-escrito por IA (`Co-Authored-By`, autor do commit) | Alta |
-| Assistido | Trailer da ferramenta (`Made-with: Cursor`, `Claude-Session:`) | Alta |
-| Assistido | Label `claude-code-assisted` no PR | Alta |
-| Assistido | Git AI registou linhas IA nos commits do PR | Alta |
-| Assistido | Autor de um commit usou a ferramenta nas 24 h anteriores | Baixa |
-| Agente | PR ou 1.º commit criado por um agente (`claude[bot]`, `cursoragent`, …) | Alta |
-| Review de IA | Review de `claude[bot]`, `cursor[bot]`, … | Alta |
+| Assisted | Commit authored or co-authored by AI (`Co-Authored-By`, commit author) | High |
+| Assisted | Tool trailer (`Made-with: Cursor`, `Claude-Session:`) | High |
+| Assisted | `claude-code-assisted` label on the PR | High |
+| Assisted | Git AI recorded AI lines in the PR's commits | High |
+| Assisted | A commit's author used the tool in the previous 24 hours | Low |
+| Agent | PR or first commit created by an agent (`claude[bot]`, `cursoragent`, …) | High |
+| AI review | Review by `claude[bot]`, `cursor[bot]`, … | High |
 
-O filtro **Só alta confiança** nos dashboards desliga a regra das 24 h.
-Padrões extra vão para `detection:` no `organization.yml`. Cada PR guarda o motivo da atribuição.
+The **High confidence only** filter in the dashboards turns off the 24-hour rule.
+Extra patterns go under `detection:` in `organization.yml`. Each PR stores the reason for its attribution.
 
-## Desenvolvimento
+## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                                            # testes unitários
-TEST_DATABASE_URL=postgresql://... pytest -q          # + teste ponta a ponta com Postgres
-python scripts/build_dashboards.py                   # os dashboards são gerados a partir deste script
+pytest -q                                            # unit tests
+TEST_DATABASE_URL=postgresql://... pytest -q          # + end-to-end test against Postgres
+python scripts/build_dashboards.py                   # dashboards are generated from this script
 ```
 
-## Privacidade
+## Privacy
 
-* Os dashboards mostram equipas; dados por pessoa só existem nas tabelas de licenças paradas e no detalhe de PRs.
-* Não se guarda conteúdo de prompts nem código: só contagens, datas e metadados de commits/PRs.
-* Antes de ligar as fontes, partilhar com a equipa o que é recolhido e para quê.
+* Dashboards show teams; per-person data appears only in the idle-seats table and the PR details table.
+* No prompt content or code is stored: only counts, dates and commit/PR metadata.
+* Before connecting the sources, tell the team what is collected and why.

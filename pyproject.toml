@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aimetrics"
 version = "0.1.0"
-description = "Métricas de adoção e impacto de IA da Outsmart"
+description = "Outsmart AI adoption and impact metrics"
 requires-python = ">=3.11"
 dependencies = [
     "psycopg[binary]>=3.2",

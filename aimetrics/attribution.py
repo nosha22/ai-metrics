@@ -1,4 +1,4 @@
-"""Aplica as regras de deteção aos PRs guardados e grava pr_ai_attribution."""
+"""Applies the detection rules to stored PRs and writes pr_ai_attribution."""
 from __future__ import annotations
 
 import datetime as dt
@@ -16,7 +16,7 @@ def make_used_tool(conn):
     def used_tool(person_id: int, tool: str, since: dt.datetime, until: dt.datetime) -> bool:
         key = (person_id, tool, since, until)
         if key not in cache:
-            # OTel dá a hora; as APIs diárias só o dia, por isso usa-se o dia inteiro (como o Swarmia).
+            # OTel gives the time; the daily APIs only the day, so the whole day is used (as Swarmia does).
             row = conn.execute(
                 """SELECT 1 FROM v_ai_activity
                    WHERE person_id = %s AND tool = %s AND is_active
@@ -60,7 +60,7 @@ def load_pr(conn, pr_id: int) -> PullRequest:
 
 
 def run(conn, detector: Detector, since: dt.datetime | None = None) -> int:
-    """Recalcula a atribuição dos PRs atualizados desde `since` (todos, se None)."""
+    """Recalculates the attribution of PRs updated since `since` (all of them if None)."""
     if since is None:
         ids = [r["id"] for r in conn.execute("SELECT id FROM pull_requests").fetchall()]
     else:
@@ -78,5 +78,5 @@ def run(conn, detector: Detector, since: dt.datetime | None = None) -> int:
                 (pr_id, a.tool, a.mode, a.confidence, a.reason),
             )
     conn.commit()
-    log.info("atribuição recalculada em %d PRs", len(ids))
+    log.info("attribution recalculated for %d PRs", len(ids))
     return len(ids)

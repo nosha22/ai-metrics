@@ -1,4 +1,4 @@
-"""Servidor HTTP: recetor OTLP do Claude Code e webhooks de deploys e incidentes."""
+"""HTTP server: Claude Code OTLP receiver and deployment/incident webhooks."""
 from __future__ import annotations
 
 import datetime as dt
@@ -17,24 +17,24 @@ app = FastAPI(title="Outsmart AI metrics")
 
 
 def _clean(value: str | None) -> str:
-    # Tolera espaços, \r de ficheiros .env editados no Windows e aspas à volta do valor
+    # Tolerates spaces, \r from .env files edited on Windows, and quotes around the value
     return (value or "").strip().strip("\"'").strip()
 
 
 def _check(expected: str | None, authorization: str | None) -> None:
     expected = _clean(expected)
     if not expected:
-        raise HTTPException(503, "token não configurado no servidor")
+        raise HTTPException(503, "token not configured on the server")
     raw = _clean(authorization)
     given = _clean(raw[7:] if raw.lower().startswith("bearer ") else raw)
     if not hmac.compare_digest(given.encode(), expected.encode()):
-        # Nunca registar o token; só o suficiente para perceber a diferença
+        # Never log the token; only enough to see how it differs
         if not raw:
             log.warning("401: request without an Authorization header")
         else:
             log.warning("401: token mismatch (received %d characters starting with %r; expected %d characters starting with %r)",
                         len(given), given[:2], len(expected), expected[:2])
-        raise HTTPException(401, "token inválido")
+        raise HTTPException(401, "invalid token")
 
 
 def otel_auth(authorization: str | None = Header(default=None)):
@@ -54,8 +54,8 @@ def health():
 async def otel_metrics(request: Request):
     ctype = request.headers.get("content-type", "")
     if "json" not in ctype:
-        # Claude Code tem de usar OTEL_EXPORTER_OTLP_PROTOCOL=http/json
-        raise HTTPException(415, "usar OTLP http/json")
+        # Claude Code must use OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+        raise HTTPException(415, "use OTLP http/json")
     payload = await request.json()
     stats: dict = {}
     with db.connect(settings.database_url) as conn:
@@ -70,7 +70,7 @@ async def otel_metrics(request: Request):
 
 @app.post("/otel/v1/logs", dependencies=[Depends(otel_auth)])
 async def otel_logs():
-    # Eventos não são usados; aceitar evita erros no Claude Code se OTEL_LOGS_EXPORTER estiver ligado.
+    # Events are not used; accepting them avoids errors in Claude Code if OTEL_LOGS_EXPORTER is on.
     return {"partialSuccess": {}}
 
 

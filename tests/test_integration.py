@@ -1,4 +1,4 @@
-"""Teste ponta a ponta contra um Postgres real (TEST_DATABASE_URL) com GitHub simulado."""
+"""End-to-end test against a real Postgres (TEST_DATABASE_URL) with a simulated GitHub."""
 import datetime as dt
 import json
 import os
@@ -15,7 +15,7 @@ from aimetrics.ai_tools import UPSERT_ACTIVITY, cursor_record_to_activity
 from aimetrics.detection import Detector
 
 URL = os.environ.get("TEST_DATABASE_URL")
-pytestmark = pytest.mark.skipif(not URL, reason="TEST_DATABASE_URL não definido")
+pytestmark = pytest.mark.skipif(not URL, reason="TEST_DATABASE_URL not set")
 
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 
@@ -99,7 +99,7 @@ def test_end_to_end(conn, tmp_path):
     org.sync(conn, ORG)
     prs, t = make_prs()
 
-    # Rui usou o Cursor no dia do commit → regra de baixa confiança das 24 h
+    # Rui used Cursor on the day of the commit → low-confidence 24 h rule
     ident = db.get_or_create_identity(conn, "cursor", "rui@acme.pt")
     rec = {"date": int(dt.datetime(t.year, t.month, t.day, tzinfo=dt.timezone.utc).timestamp() * 1000),
            "isActive": True, "totalAccepts": 4, "acceptedLinesAdded": 20}
@@ -115,7 +115,7 @@ def test_end_to_end(conn, tmp_path):
     assert rows[2]["ai_assisted"] and not rows[2]["ai_assisted_high"] and rows[2]["review_agent"]
     assert rows[3]["cloud_agent"]
     assert not rows[4]["ai_assisted"]
-    # review humana (ana, 2.ª review) e não a do bot
+    # the human review (ana, second review), not the bot's
     assert round(rows[2]["review_time_h"]) == 2
     assert round(rows[1]["cycle_time_h"]) == 5
     assert rows[1]["person"] == "Ana" and rows[1]["team"] == "Mobile"
@@ -123,7 +123,7 @@ def test_end_to_end(conn, tmp_path):
     reasons = {r["reason"] for r in conn.execute("SELECT reason FROM pr_ai_attribution").fetchall()}
     assert any("noreply@anthropic.com" in r for r in reasons)
 
-    # Adoção: Ana (claude) sem atividade → licença parada; Rui ativo no Cursor; Eva parada
+    # Adoption: Ana (claude) with no activity → idle seat; Rui active on Cursor; Eva idle
     week = conn.execute(
         "SELECT * FROM v_adoption_weekly WHERE tool = 'cursor' AND week = date_trunc('week', %s::date)::date", (t,)
     ).fetchone()
@@ -138,7 +138,7 @@ def test_otel_endpoint(conn, monkeypatch):
     from aimetrics import server
 
     monkeypatch.setattr(server.settings, "database_url", URL)
-    monkeypatch.setattr(server.settings, "otel_token", "segredo")
+    monkeypatch.setattr(server.settings, "otel_token", "secret")
     org.sync(conn, ORG)
     ns = int(NOW.timestamp() * 1e9)
     payload = {"resourceMetrics": [{"resource": {"attributes": []}, "scopeMetrics": [{"metrics": [
@@ -149,8 +149,8 @@ def test_otel_endpoint(conn, monkeypatch):
     ]}]}]}
     client = TestClient(server.app)
     assert client.post("/otel/v1/metrics", json=payload).status_code == 401
-    for _ in range(2):  # duas exportações delta somam-se
-        r = client.post("/otel/v1/metrics", json=payload, headers={"Authorization": "Bearer segredo"})
+    for _ in range(2):  # two delta exports add up
+        r = client.post("/otel/v1/metrics", json=payload, headers={"Authorization": "Bearer secret"})
         assert r.status_code == 200
     row = conn.execute("SELECT * FROM v_ai_activity WHERE tool = 'claude_code'").fetchone()
     assert row["sessions"] == 2 and float(row["cost_usd"]) == 0.5 and row["is_active"]

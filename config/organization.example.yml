@@ -1,36 +1,36 @@
-# Copiar para config/organization.yml e preencher.
-# Este ficheiro é a fonte de verdade para equipas, pessoas e o mapa de identidades.
-# Correr `aimetrics org sync` depois de o alterar.
+# Copy to config/organization.yml and fill in.
+# This file is the source of truth for teams, people and the identity map.
+# Run `aimetrics org sync` after changing it.
 
 teams:
   - name: Mobile
   - name: Backend
 
 repositories:
-  - name: nosha22/outsmart-android     # owner/repo no GitHub
+  - name: nosha22/outsmart-android     # owner/repo on GitHub
     team: Mobile
   - name: nosha22/outsmart-api
     team: Backend
 
 people:
-  - name: Sérgio Cruz
+  - name: Jane Doe
     team: Mobile
     joined_on: 2020-01-01
     identities:
-      github: sergio-cruz              # login GitHub
-      git_email:                       # todos os emails usados nos commits
-        - sergio@outsmart.example
-      claude: sergio@outsmart.example  # email da conta Claude
-      cursor: sergio@outsmart.example  # email da conta Cursor
+      github: jane-doe                 # GitHub login
+      git_email:                       # every email used in commits
+        - jane@outsmart.example
+      claude: jane@outsmart.example    # Claude account email
+      cursor: jane@outsmart.example    # Cursor account email
     licenses:
       - tool: claude_code
         from: 2026-09-01
       - tool: cursor
         from: 2026-06-01
-        # to: 2026-10-01               # data de fim, se a licença foi removida
+        # to: 2026-10-01               # end date, if the license was removed
 
-# Padrões de deteção. Os valores por omissão estão em aimetrics/detection.py;
-# aqui só se acrescentam padrões (regex, sem distinção de maiúsculas).
+# Detection patterns. The defaults are in aimetrics/detection.py;
+# here you only add patterns (regular expressions, case-insensitive).
 detection:
   claude_code:
     coauthor: []

@@ -1,4 +1,4 @@
-"""Ingestão das APIs de administração: Claude Code Analytics API e Cursor Admin API."""
+"""Ingestion from the admin APIs: Claude Code Analytics API and Cursor Admin API."""
 from __future__ import annotations
 
 import datetime as dt
@@ -32,7 +32,7 @@ CLAUDE_URL = "https://api.anthropic.com/v1/organizations/usage_report/claude_cod
 
 
 def claude_record_to_activity(rec: dict) -> tuple[str, str, dict]:
-    """Converte um registo da API em (fonte_identidade, valor, linha de atividade)."""
+    """Converts an API record into (identity source, value, activity row)."""
     actor = rec.get("actor") or {}
     if actor.get("type") == "user_actor":
         source, value = "claude", actor.get("email_address")
@@ -47,13 +47,13 @@ def claude_record_to_activity(rec: dict) -> tuple[str, str, dict]:
     for m in rec.get("model_breakdown") or []:
         tk = m.get("tokens") or {}
         tokens += sum(tk.get(k, 0) for k in ("input", "output", "cache_read", "cache_creation"))
-        cost_cents += (m.get("estimated_cost") or {}).get("amount", 0)  # em cêntimos USD
+        cost_cents += (m.get("estimated_cost") or {}).get("amount", 0)  # in US cents
     sessions = core.get("num_sessions", 0)
     return source, value, {
         "tool": "claude_code",
         "day": rec["date"][:10],
         "source": "analytics_api",
-        # Swarmia: ativo = aceitou código ou usou chat; numa sessão do Claude Code o chat é o próprio uso
+        # Swarmia: active = accepted code or used chat; in a Claude Code session, chatting is the usage itself
         "is_active": accepted > 0 or sessions > 0,
         "sessions": sessions,
         "lines_added": loc.get("added", 0),
@@ -132,7 +132,7 @@ def sync_cursor(conn, admin_key: str, days: int, manage_licenses: bool = True, c
     now = dt.datetime.now(dt.timezone.utc)
     rows = 0
     start = now - dt.timedelta(days=days)
-    while start < now:  # a API aceita no máximo 90 dias por pedido
+    while start < now:  # the API accepts at most 90 days per request
         end = min(start + dt.timedelta(days=89), now)
         r = client.post("/teams/daily-usage-data", json={"startDate": int(start.timestamp() * 1000), "endDate": int(end.timestamp() * 1000)})
         r.raise_for_status()
@@ -151,10 +151,10 @@ def sync_cursor(conn, admin_key: str, days: int, manage_licenses: bool = True, c
 
 
 def sync_cursor_licenses(conn, emails: list[str], today: dt.date) -> None:
-    """Membros da equipa Cursor = licenças. Abre licenças novas e fecha as de quem saiu."""
+    """Cursor team members = licenses. Opens new licenses and closes those of people who left."""
     if not emails:
-        # Lista vazia é quase sempre um erro da API; não fechar todas as licenças por causa disso
-        log.warning("cursor: lista de membros vazia, licenças não alteradas")
+        # An empty list is almost always an API error; do not close every license because of it
+        log.warning("cursor: empty member list, licenses left unchanged")
         return
     present = set()
     for email in emails:

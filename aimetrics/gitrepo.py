@@ -1,4 +1,4 @@
-"""Clones locais: notas do Git AI e sobrevivência de linhas (git blame)."""
+"""Local clones: Git AI notes and line survival (git blame)."""
 from __future__ import annotations
 
 import datetime as dt
@@ -21,7 +21,7 @@ def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProce
 
 
 def ensure_clone(base: Path, full_name: str, token: str | None) -> Path:
-    """Clone sem checkout, com as notas do Git AI e as refs dos PRs."""
+    """Clone without checkout, with the Git AI notes and the PR refs."""
     path = base / full_name.replace("/", "__")
     url = f"https://x-access-token:{token}@github.com/{full_name}.git" if token else f"https://github.com/{full_name}.git"
     if not (path / ".git").exists():
@@ -41,21 +41,21 @@ def has_note(repo: Path, sha: str) -> bool:
 
 
 def commit_stats(repo: Path, sha: str, git_ai_bin: str) -> dict | None:
-    """`git ai stats <sha> --json`. Devolve None se o commit não tem nota."""
+    """`git ai stats <sha> --json`. Returns None if the commit has no note."""
     if not has_note(repo, sha):
         return None
     if not shutil.which(git_ai_bin):
-        raise RuntimeError(f"{git_ai_bin} não está instalado (necessário para ler as notas do Git AI)")
+        raise RuntimeError(f"{git_ai_bin} is not installed (needed to read Git AI notes)")
     r = subprocess.run([git_ai_bin, "stats", sha, "--json"], cwd=repo, capture_output=True, text=True)
     if r.returncode != 0:
-        log.warning("git ai stats falhou em %s: %s", sha[:7], r.stderr.strip()[:200])
+        log.warning("git ai stats failed on %s: %s", sha[:7], r.stderr.strip()[:200])
         return None
     data = json.loads(r.stdout)
     return {**EMPTY_STATS, **{k: data.get(k, v) for k, v in EMPTY_STATS.items()}}
 
 
 def sync_git_ai(conn, repo_path: Path, rid: int, git_ai_bin: str, refresh_days: int = 3) -> int:
-    """Recolhe estatísticas para commits de PRs ainda sem dados (e os recentes, cujas notas podem chegar depois)."""
+    """Collects stats for PR commits that have no data yet (and recent ones, whose notes may arrive later)."""
     rows = conn.execute(
         """SELECT DISTINCT c.sha FROM commits c
            LEFT JOIN git_ai_commit_stats s ON s.repo_id = c.repo_id AND s.sha = c.sha
@@ -91,15 +91,15 @@ def default_branch(repo: Path) -> str:
 
 
 def surviving_lines(repo: Path, ref: str, files: list[str], origin_shas: set[str]) -> int:
-    """Conta as linhas em `ref` cuja origem (git blame) é um dos commits do PR."""
+    """Counts the lines in `ref` whose origin (git blame) is one of the PR's commits."""
     total = 0
     for f in files:
         r = git(repo, "blame", "--line-porcelain", "-w", ref, "--", f, check=False)
         if r.returncode != 0:
-            continue  # ficheiro apagado ou renomeado
+            continue  # file deleted or renamed
         for line in r.stdout.splitlines():
             if len(line) >= 40 and line[:40] in origin_shas and (len(line) == 40 or line[40] == " "):
-                # Linha de cabeçalho «<sha> <orig> <final> [n]»: uma por linha de código
+                # Header line "<sha> <orig> <final> [n]": one per line of code
                 total += 1
     return total
 
@@ -110,7 +110,7 @@ def changed_files(repo: Path, sha: str) -> list[str]:
 
 
 def sync_survival(conn, repo_path: Path, rid: int, max_age_days: int = 180) -> int:
-    """Mede, no máximo uma vez por semana, quantas linhas de cada PR ainda existem no ramo principal."""
+    """Measures, at most once a week, how many lines of each PR still exist on the main branch."""
     ref = default_branch(repo_path)
     today = dt.date.today()
     prs = conn.execute(

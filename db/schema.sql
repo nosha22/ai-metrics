@@ -1,6 +1,6 @@
 -- Outsmart AI metrics — schema
--- Factos brutos ficam nestas tabelas; as métricas são calculadas nas views (db/views.sql).
--- Idempotente: pode ser aplicado várias vezes.
+-- Raw facts live in these tables; metrics are computed in the views (db/views.sql).
+-- Idempotent: safe to apply many times.
 
 CREATE TABLE IF NOT EXISTS teams (
     id          SERIAL PRIMARY KEY,
@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS people (
     is_bot      BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Uma pessoa tem várias contas: email do git, login GitHub, email Cursor, email Claude...
+-- A person has several accounts: git email, GitHub login, Cursor email, Claude email...
 CREATE TABLE IF NOT EXISTS identities (
     id          SERIAL PRIMARY KEY,
-    person_id   INTEGER REFERENCES people(id) ON DELETE CASCADE,  -- NULL = ainda por ligar
+    person_id   INTEGER REFERENCES people(id) ON DELETE CASCADE,  -- NULL = not linked yet
     source      TEXT NOT NULL CHECK (source IN ('git_email','github','cursor','claude','claude_api_key')),
     value       TEXT NOT NULL,
     first_seen  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS ai_licenses (
     person_id   INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
     tool        TEXT NOT NULL,                 -- claude_code | cursor
     valid_from  DATE NOT NULL,
-    valid_to    DATE,                          -- NULL = ainda ativa
+    valid_to    DATE,                          -- NULL = still active
     PRIMARY KEY (person_id, tool, valid_from)
 );
 
--- Uma linha por pessoa, ferramenta, dia e fonte. A view escolhe a fonte com mais uso (como o Swarmia).
+-- One row per person, tool, day and source. The view keeps the source with the most usage (as Swarmia does).
 CREATE TABLE IF NOT EXISTS ai_daily_activity (
     identity_id      INTEGER NOT NULL REFERENCES identities(id) ON DELETE CASCADE,
     tool             TEXT NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS ai_daily_activity (
     pull_requests    INTEGER NOT NULL DEFAULT 0,
     tokens           BIGINT  NOT NULL DEFAULT 0,
     cost_usd         NUMERIC(12,4) NOT NULL DEFAULT 0,
-    last_activity_at TIMESTAMPTZ,              -- só OTel tem hora; APIs diárias deixam NULL
+    last_activity_at TIMESTAMPTZ,              -- only OTel has a time; daily APIs leave it NULL
     PRIMARY KEY (identity_id, tool, day, source)
 );
 
@@ -63,13 +63,13 @@ CREATE TABLE IF NOT EXISTS repositories (
 );
 
 CREATE TABLE IF NOT EXISTS pull_requests (
-    id               BIGINT PRIMARY KEY,       -- id global do GitHub
+    id               BIGINT PRIMARY KEY,       -- GitHub global id
     repo_id          INTEGER NOT NULL REFERENCES repositories(id),
     number           INTEGER NOT NULL,
     title            TEXT,
     author_login     TEXT,
     author_identity  INTEGER REFERENCES identities(id),
-    initiated_by     INTEGER REFERENCES people(id),  -- pessoa real (para PRs de agentes)
+    initiated_by     INTEGER REFERENCES people(id),  -- the real person (for agent PRs)
     base_branch      TEXT,
     labels           TEXT[] NOT NULL DEFAULT '{}',
     is_draft         BOOLEAN NOT NULL DEFAULT FALSE,
@@ -90,15 +90,15 @@ CREATE TABLE IF NOT EXISTS commits (
     sha              TEXT NOT NULL,
     repo_id          INTEGER NOT NULL REFERENCES repositories(id),
     pr_id            BIGINT REFERENCES pull_requests(id) ON DELETE CASCADE,
-    position         INTEGER,                  -- ordem dentro do PR (0 = primeiro)
+    position         INTEGER,                  -- order within the PR (0 = first)
     author_name      TEXT,
     author_email     TEXT,
     author_login     TEXT,
     committer_name   TEXT,
     committer_email  TEXT,
     committer_login  TEXT,
-    co_authors       TEXT[] NOT NULL DEFAULT '{}',   -- "Nome <email>"
-    trailers         TEXT[] NOT NULL DEFAULT '{}',   -- "Chave: valor"
+    co_authors       TEXT[] NOT NULL DEFAULT '{}',   -- "Name <email>"
+    trailers         TEXT[] NOT NULL DEFAULT '{}',   -- "Key: value"
     message_head     TEXT,
     committed_at     TIMESTAMPTZ,
     additions        INTEGER,
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS pr_reviews (
     comments         INTEGER NOT NULL DEFAULT 0
 );
 
--- Resultado das regras de deteção. Recalculada inteira por PR a cada execução.
+-- Output of the detection rules. Fully recalculated per PR on every run.
 CREATE TABLE IF NOT EXISTS pr_ai_attribution (
     pr_id       BIGINT NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
     tool        TEXT NOT NULL,                 -- claude_code | cursor | copilot | git_ai
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS pr_ai_attribution (
     PRIMARY KEY (pr_id, tool, mode)
 );
 
--- Git AI: estatísticas por commit, de `git ai stats <sha> --json`
+-- Git AI: per-commit stats, from `git ai stats <sha> --json`
 CREATE TABLE IF NOT EXISTS git_ai_commit_stats (
     repo_id                INTEGER NOT NULL REFERENCES repositories(id),
     sha                    TEXT NOT NULL,
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS git_ai_commit_stats (
     PRIMARY KEY (repo_id, sha)
 );
 
--- Sobrevivência das linhas de cada PR no ramo principal (git blame), medida periodicamente.
+-- Survival of each PR's lines on the main branch (git blame), measured periodically.
 CREATE TABLE IF NOT EXISTS line_survival (
     pr_id            BIGINT NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
     measured_at      DATE NOT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS line_survival (
     PRIMARY KEY (pr_id, measured_at)
 );
 
--- Fase 4: deploys e incidentes para o change failure rate
+-- Phase 4: deployments and incidents for the change failure rate
 CREATE TABLE IF NOT EXISTS deployments (
     id           TEXT PRIMARY KEY,
     repo_id      INTEGER NOT NULL REFERENCES repositories(id),
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     deployed_at  TIMESTAMPTZ NOT NULL
 );
 
--- PRs incluídos em cada deploy (preenchido pelo coletor a partir do merge_commit_sha)
+-- PRs included in each deployment (filled in by the collector from merge_commit_sha)
 CREATE TABLE IF NOT EXISTS deployment_prs (
     deployment_id TEXT NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
     pr_id         BIGINT NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS incidents (
     caused_by_deployment   TEXT REFERENCES deployments(id)
 );
 
--- Último valor de cada série OTel cumulativa, para converter em deltas
+-- Last value of each cumulative OTel series, to turn it into deltas
 CREATE TABLE IF NOT EXISTS otel_series (
     key         TEXT PRIMARY KEY,
     start_ns    BIGINT NOT NULL,

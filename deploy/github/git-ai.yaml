@@ -1,9 +1,9 @@
-# Copiar para .github/workflows/git-ai.yaml em CADA repositório medido
-# (ou correr `git ai ci github install` na raiz do repo, que gera o mesmo ficheiro).
+# Copy to .github/workflows/git-ai.yaml in EVERY measured repository
+# (or run `git ai ci github install` at the repo root, which generates the same file).
 #
-# Porquê: o "Squash and merge" e o "Rebase and merge" do GitHub não correm o Git AI,
-# por isso as notas refs/notes/ai não passam para o commit final. Esta action reescreve-as.
-# Fonte: https://usegitai.com/docs/team-usage/ci-workflows
+# Why: GitHub's "Squash and merge" and "Rebase and merge" do not run Git AI,
+# so the refs/notes/ai notes do not reach the final commit. This action rewrites them.
+# Source: https://usegitai.com/docs/team-usage/ci-workflows
 name: Git AI
 
 on:

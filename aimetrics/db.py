@@ -1,4 +1,4 @@
-"""Acesso à base de dados: ligação, schema e resolução de identidades."""
+"""Database access: connection, schema and identity resolution."""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -24,15 +24,15 @@ def apply_schema(conn) -> None:
 
 def normalize(source: str, value: str) -> str:
     value = value.strip()
-    # Emails e logins GitHub não distinguem maiúsculas
+    # Emails and GitHub logins are case-insensitive
     return value.lower()
 
 
 def get_or_create_identity(conn, source: str, value: str | None) -> int | None:
-    """Devolve o id da identidade, criando-a por ligar (person_id NULL) se for nova.
+    """Returns the identity id, creating it unlinked (person_id NULL) if it is new.
 
-    Se a identidade nova for um email que já existe noutra fonte ligada a uma pessoa,
-    liga-a automaticamente à mesma pessoa (ex.: email Claude igual ao email do git).
+    If the new identity is an email that already exists in another source linked to a person,
+    it is linked to the same person automatically (e.g. a Claude email equal to the git email).
     """
     if not value:
         return None

@@ -51,7 +51,7 @@ def test_cloud_agent_pr_author():
 
 
 def test_swarmia_example_author_beats_committer():
-    # 1.º commit escrito por Claude e commitado por cursoragent → agente Claude Code
+    # first commit authored by Claude and committed by cursoragent → Claude Code agent
     c = Commit("e" * 40, author_name="Claude", committer_name="cursoragent")
     got = modes(Detector().attribute(pr([c])))
     assert ("claude_code", "cloud_agent", "high") in got

@@ -1,18 +1,18 @@
--- Outsmart AI metrics — views de métricas
--- Recriadas sempre que o schema é aplicado.
+-- Outsmart AI metrics — metric views
+-- Recreated every time the schema is applied.
 
 DROP VIEW IF EXISTS v_cfr_weekly, v_survival, v_pr_facts, v_git_ai_pr, v_idle_seats,
     v_adoption_weekly, v_ai_activity, v_members CASCADE;
 
--- Membros atuais (como o Swarmia: a composição atual da equipa vale para todo o histórico)
+-- Current members (as in Swarmia: today's team composition applies to the whole history)
 CREATE VIEW v_members AS
 SELECT p.id AS person_id, p.name, COALESCE(t.name, '(no team)') AS team
 FROM people p
 LEFT JOIN teams t ON t.id = p.team_id
 WHERE NOT p.is_bot AND (p.left_on IS NULL OR p.left_on > current_date);
 
--- Atividade diária por pessoa e ferramenta. Se a mesma ferramenta reporta pela Analytics API
--- e por OpenTelemetry no mesmo dia, fica a fonte com mais uso (regra do Swarmia).
+-- Daily activity per person and tool. If the same tool reports through the Analytics API
+-- and OpenTelemetry on the same day, the source with more usage wins (Swarmia's rule).
 CREATE VIEW v_ai_activity AS
 SELECT DISTINCT ON (i.person_id, a.tool, a.day)
     i.person_id, a.tool, a.day, a.source, a.is_active, a.sessions,
@@ -26,9 +26,9 @@ ORDER BY i.person_id, a.tool, a.day,
          (a.lines_added + a.actions_accepted + a.chat_requests + a.agent_requests) DESC,
          a.tokens DESC;
 
--- Adoção por equipa, ferramenta e semana (definições do Swarmia):
---   enabled  = membros com licença em algum momento da semana (ou ativos, quando a fonte não dá licenças)
---   active   = membros que aceitaram código ou usaram chat na semana
+-- Adoption per team, tool and week (Swarmia definitions):
+--   enabled  = members with a license at some point in the week (or active ones, when the source has no license list)
+--   active   = members who accepted code or used chat in the week
 CREATE VIEW v_adoption_weekly AS
 WITH weeks AS (
     SELECT generate_series(date_trunc('week', current_date - 364), date_trunc('week', current_date), '1 week')::date AS week
@@ -58,7 +58,7 @@ LEFT JOIN lic ON lic.person_id = g.person_id AND lic.tool = g.tool AND lic.week 
 LEFT JOIN act ON act.person_id = g.person_id AND act.tool = g.tool AND act.week = g.week
 GROUP BY 1,2,3;
 
--- Licenças paradas: licença ativa hoje e sem atividade nos últimos 28 dias
+-- Idle seats: license active today and no activity in the last 28 days
 CREATE VIEW v_idle_seats AS
 SELECT m.team, m.name, l.tool, l.valid_from,
        (SELECT max(day) FROM v_ai_activity a WHERE a.person_id = l.person_id AND a.tool = l.tool AND a.is_active) AS last_active_day
@@ -69,7 +69,7 @@ WHERE (l.valid_to IS NULL OR l.valid_to >= current_date)
       SELECT 1 FROM v_ai_activity a
       WHERE a.person_id = l.person_id AND a.tool = l.tool AND a.is_active AND a.day >= current_date - 28);
 
--- Git AI agregado por PR
+-- Git AI aggregated per PR
 CREATE VIEW v_git_ai_pr AS
 SELECT c.pr_id,
        count(*)                                    AS commits,
@@ -83,7 +83,7 @@ LEFT JOIN git_ai_commit_stats s ON s.repo_id = c.repo_id AND s.sha = c.sha
 WHERE c.pr_id IS NOT NULL
 GROUP BY c.pr_id;
 
--- Uma linha por PR com tudo o que os dashboards precisam
+-- One row per PR with everything the dashboards need
 CREATE VIEW v_pr_facts AS
 SELECT pr.id AS pr_id, r.full_name AS repo, pr.number, pr.title,
        COALESCE(tm.name, rt.name, '(no team)') AS team,
@@ -109,7 +109,7 @@ LEFT JOIN teams tm ON tm.id = p.team_id
 LEFT JOIN v_git_ai_pr g ON g.pr_id = pr.id
 WHERE pr.merged_at IS NOT NULL;
 
--- Sobrevivência das linhas por PR: todas as medições, com a idade do PR na data da medição
+-- Line survival per PR: every measurement, with the PR's age on the measurement date
 CREATE VIEW v_survival AS
 SELECT f.pr_id, f.repo, f.team, f.merged_at, s.measured_at,
        (s.measured_at - f.merged_at::date) AS age_days,
@@ -125,7 +125,7 @@ JOIN pull_requests pr ON pr.id = s.pr_id
 JOIN v_pr_facts f ON f.pr_id = s.pr_id
 WHERE pr.additions > 0;
 
--- Change failure rate por semana, separando deploys com e sem PRs assistidos por IA
+-- Change failure rate per week, splitting deployments with and without AI-assisted PRs
 CREATE VIEW v_cfr_weekly AS
 WITH d AS (
     SELECT dep.id, date_trunc('week', dep.deployed_at)::date AS week,

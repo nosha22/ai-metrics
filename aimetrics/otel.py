@@ -1,9 +1,9 @@
-"""Conversão de métricas OTLP (JSON) do Claude Code em atividade diária.
+"""Converts Claude Code OTLP (JSON) metrics into daily activity.
 
-Métricas usadas (code.claude.com/docs/en/monitoring-usage):
+Metrics used (code.claude.com/docs/en/monitoring-usage):
   claude_code.session.count             -> sessions
-  claude_code.lines_of_code.count       -> lines_added / lines_removed (atributo type)
-  claude_code.code_edit_tool.decision   -> actions_accepted / actions_rejected (atributo decision)
+  claude_code.lines_of_code.count       -> lines_added / lines_removed (type attribute)
+  claude_code.code_edit_tool.decision   -> actions_accepted / actions_rejected (decision attribute)
   claude_code.commit.count              -> commits
   claude_code.pull_request.count        -> pull_requests
   claude_code.token.usage               -> tokens
@@ -58,11 +58,11 @@ def _field_for(name: str, attrs: dict) -> str | None:
 
 
 def parse(payload: dict, series_delta, stats: dict | None = None) -> dict[tuple[str, str], dict]:
-    """Agrega um pedido OTLP em {(email, dia): contadores}.
+    """Aggregates an OTLP request into {(email, day): counters}.
 
-    `series_delta(key, start_ns, value) -> float` converte séries cumulativas em deltas
-    (guarda o último valor visto); para séries delta devolve-se o próprio valor.
-    `stats`, se for passado, recebe contagens para diagnóstico (pontos usados e descartados).
+    `series_delta(key, start_ns, value) -> float` turns cumulative series into deltas
+    (it stores the last value seen); for delta series the value itself is returned.
+    `stats`, if given, receives diagnostic counts (points used and dropped).
     """
     stats = stats if stats is not None else {}
     for k in ("points", "used", "no_email", "ignored_metric"):
@@ -112,7 +112,7 @@ def make_series_delta(conn):
             (key, start_ns, value),
         )
         if row is None or row["start_ns"] != start_ns or value < row["value"]:
-            return value  # série nova ou reiniciada
+            return value  # new or restarted series
         return value - row["value"]
 
     return series_delta

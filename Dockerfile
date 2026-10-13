@@ -4,8 +4,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Git AI: necessário para ler as notas refs/notes/ai (`git ai stats --json`)
-RUN curl -fsSL https://usegitai.com/install.sh | bash || echo "AVISO: Git AI não instalado; a Fase 3 fica sem dados"
+# Git AI: needed to read the refs/notes/ai notes (`git ai stats --json`)
+RUN curl -fsSL https://usegitai.com/install.sh | bash || echo "WARNING: Git AI not installed; phase 3 will have no data"
 ENV PATH="/root/.git-ai/bin:${PATH}"
 
 WORKDIR /app

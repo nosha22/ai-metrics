@@ -1,4 +1,4 @@
-"""Configuração: segredos por variáveis de ambiente, organização (equipas, pessoas, repos) em YAML."""
+"""Configuration: secrets from environment variables, organization (teams, people, repos) from YAML."""
 from __future__ import annotations
 
 import os
@@ -29,9 +29,9 @@ class Settings:
 
 
 def load_org(path: Path) -> dict:
-    """Lê config/organization.yml. Estrutura documentada em config/organization.example.yml."""
+    """Reads config/organization.yml. The structure is documented in config/organization.example.yml."""
     if not path.exists():
-        raise FileNotFoundError(f"{path} não existe — copia config/organization.example.yml")
+        raise FileNotFoundError(f"{path} does not exist — copy config/organization.example.yml")
     data = yaml.safe_load(path.read_text()) or {}
     data.setdefault("teams", [])
     data.setdefault("people", [])

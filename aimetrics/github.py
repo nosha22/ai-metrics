@@ -1,4 +1,4 @@
-"""Ingestão do GitHub: PRs, commits, reviews e deploys."""
+"""GitHub ingestion: PRs, commits, reviews and deployments."""
 from __future__ import annotations
 
 import datetime as dt
@@ -37,7 +37,7 @@ class GitHub:
             if r.status_code in (403, 429) and r.headers.get("x-ratelimit-remaining") == "0":
                 reset = int(r.headers.get("x-ratelimit-reset", time.time() + 60))
                 wait = max(1, reset - int(time.time())) + 1
-                log.warning("rate limit do GitHub, a aguardar %ss", wait)
+                log.warning("GitHub rate limit, waiting %ss", wait)
                 time.sleep(min(wait, 900))
                 continue
             if r.status_code >= 500:
@@ -59,7 +59,7 @@ class GitHub:
 
 
 def sync_repo(conn, gh: GitHub, full_name: str, since: dt.datetime, detector: Detector) -> int:
-    """Importa os PRs atualizados desde `since`. Devolve o número de PRs importados."""
+    """Imports the PRs updated since `since`. Returns the number of PRs imported."""
     rid = db.repo_id(conn, full_name)
     count = 0
     for item in gh.paginate(f"/repos/{full_name}/pulls", state="all", sort="updated", direction="desc"):
@@ -86,7 +86,7 @@ def _store_pr(conn, gh: GitHub, full_name: str, rid: int, pr: dict, detector: De
 
     first_commit_at = min((_ts(c["commit"]["author"]["date"]) for c in commits if c["commit"].get("author")), default=None)
 
-    # Tempo até à primeira review humana: ignora o autor e os bots de review de IA
+    # Time to first human review: ignores the author and AI review bots
     def is_ai_or_bot(login: str | None) -> bool:
         return not login or login.endswith("[bot]") or bool(
             any(detector._any(t, "reviewers", [login]) for t in detector.patterns)
@@ -137,8 +137,8 @@ def _store_pr(conn, gh: GitHub, full_name: str, rid: int, pr: dict, detector: De
              _ts((info.get("committer") or {}).get("date"))),
         )
 
-    # Se o autor do PR é um agente (ex.: claude[bot]), a pessoa que o iniciou é o autor
-    # humano do primeiro commit ou, na falta dele, quem o pediu fica por ligar.
+    # If the PR author is an agent (e.g. claude[bot]), the person who started it is the human
+    # author of the first commit; if there is none, the initiator stays unlinked.
     if initiated_by is None and commits:
         first = commits[0]
         email = (first["commit"].get("author") or {}).get("email")
@@ -162,7 +162,7 @@ def _store_pr(conn, gh: GitHub, full_name: str, rid: int, pr: dict, detector: De
 
 
 def sync_deployments(conn, gh: GitHub, full_name: str, environment: str = "production") -> int:
-    """Importa deploys bem-sucedidos da API de Deployments do GitHub e liga-os aos PRs incluídos."""
+    """Imports successful deployments from the GitHub Deployments API and links them to the PRs they include."""
     rid = db.repo_id(conn, full_name)
     deps = []
     for d in gh.paginate(f"/repos/{full_name}/deployments", environment=environment):

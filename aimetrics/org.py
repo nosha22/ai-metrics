@@ -1,4 +1,4 @@
-"""Sincroniza equipas, pessoas, identidades, licenças e repositórios a partir do YAML."""
+"""Syncs teams, people, identities, licenses and repositories from the YAML file."""
 from __future__ import annotations
 
 import datetime as dt
@@ -39,7 +39,7 @@ def sync(conn, org: dict) -> dict:
     people = 0
     for p in org["people"]:
         idents = p.get("identities") or {}
-        # Procura a pessoa por qualquer identidade já ligada, para não duplicar ao mudar o nome
+        # Look the person up by any identity already linked, so renaming them does not create a duplicate
         person_id = None
         for source in SOURCES:
             for value in _as_list(idents.get(source)):
@@ -71,13 +71,13 @@ def sync(conn, org: dict) -> dict:
             )
         people += 1
 
-    # PRs cujo autor só agora foi ligado a uma pessoa
+    # PRs whose author has only now been linked to a person
     conn.execute(
         """UPDATE pull_requests pr SET initiated_by = i.person_id
            FROM identities i WHERE i.id = pr.author_identity AND pr.initiated_by IS NULL AND i.person_id IS NOT NULL"""
     )
     conn.commit()
-    log.info("org: %d equipas, %d pessoas, %d repos", len(team_ids), people, len(org["repositories"]))
+    log.info("org: %d teams, %d people, %d repos", len(team_ids), people, len(org["repositories"]))
     return {"teams": len(team_ids), "people": people, "repositories": len(org["repositories"])}
 
 

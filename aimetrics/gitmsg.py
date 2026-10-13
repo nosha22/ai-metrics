@@ -1,4 +1,4 @@
-"""Leitura de trailers e co-autores em mensagens de commit."""
+"""Parsing of trailers and co-authors in commit messages."""
 from __future__ import annotations
 
 import re
@@ -7,12 +7,12 @@ _TRAILER = re.compile(r"^([A-Za-z][A-Za-z0-9-]*):\s*(.+?)\s*$")
 
 
 def parse_trailers(message: str) -> list[str]:
-    """Devolve os trailers do último parágrafo da mensagem, como «Chave: valor».
+    """Returns the trailers in the message's last paragraph, as "Key: value".
 
-    Segue a convenção do git: os trailers estão no último bloco separado por linha em branco
-    e cada linha tem a forma «Chave: valor». Linhas que não são trailers nesse bloco
-    (ex.: «🤖 Generated with Claude Code») são ignoradas em vez de invalidarem o bloco,
-    porque as ferramentas de IA costumam misturá-las.
+    Follows git's convention: trailers live in the last block separated by a blank line,
+    and each line has the form "Key: value". Lines in that block that are not trailers
+    (e.g. "🤖 Generated with Claude Code") are skipped instead of invalidating the block,
+    because AI tools often mix them in.
     """
     if not message:
         return []

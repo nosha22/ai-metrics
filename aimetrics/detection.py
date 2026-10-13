@@ -1,17 +1,17 @@
-"""Regras de atribuição de IA a pull requests.
+"""Rules that attribute AI involvement to pull requests.
 
-Reproduz as regras públicas do Swarmia (help.swarmia.com/features/ai-tools/ai-tool-detection-and-filters):
+Reproduces Swarmia's public rules (help.swarmia.com/features/ai-tools/ai-tool-detection-and-filters):
 
-  assisted (alta)  — um commit foi escrito ou co-escrito por uma ferramenta de IA
-  assisted (alta)  — um commit tem um trailer da ferramenta (ex.: `Made-with: Cursor`)
-  assisted (alta)  — o PR tem a label da ferramenta (ex.: `claude-code-assisted`)
-  assisted (baixa) — o autor de um commit usou a ferramenta nas 24 h antes do commit
-  cloud_agent      — o PR ou o seu primeiro commit foi criado pelo agente
-  review_agent     — o PR tem reviews de um bot de IA
+  assisted (high)  — a commit was authored or co-authored by an AI tool
+  assisted (high)  — a commit has the tool's trailer (e.g. `Made-with: Cursor`)
+  assisted (high)  — the PR has the tool's label (e.g. `claude-code-assisted`)
+  assisted (low)   — a commit's author used the tool in the 24 h before the commit
+  cloud_agent      — the PR or its first commit was created by the agent
+  review_agent     — the PR has reviews from an AI bot
 
-Extra Outsmart: se o Git AI registou linhas IA nos commits do PR, isso é atribuição de alta confiança.
+Outsmart extra: if Git AI recorded AI lines in the PR's commits, that is high-confidence attribution.
 
-Este módulo não toca na base de dados: recebe dados e devolve atribuições, para ser testável.
+This module does not touch the database: it takes data and returns attributions, so it is easy to test.
 """
 from __future__ import annotations
 
@@ -22,11 +22,11 @@ from typing import Callable, Iterable
 
 DEFAULT_PATTERNS: dict[str, dict[str, list[str]]] = {
     "claude_code": {
-        # Co-authored-by: Claude <noreply@anthropic.com>  (atribuição por omissão do Claude Code)
+        # Co-authored-by: Claude <noreply@anthropic.com>  (Claude Code's default attribution)
         "coauthor": [r"noreply@anthropic\.com", r"^claude\b"],
         "trailers": [r"^claude-session:"],
         "labels": [r"^claude-code-assisted$"],
-        # Commits/PRs criados pela GitHub Action do Claude ou por sessões cloud
+        # Commits/PRs created by the Claude GitHub Action or by cloud sessions
         "agents": [r"^claude(\[bot\])?$", r"^claude-code(\[bot\])?$"],
         "reviewers": [r"^claude(\[bot\])?$"],
     },
@@ -111,12 +111,12 @@ class Detector:
     def _agent_committer(self, tool: str, c: Commit) -> bool:
         return bool(self._any(tool, "agents", [c.committer_login, c.committer_name]))
 
-    # --- regras ----------------------------------------------------------
+    # --- rules -----------------------------------------------------------
     def cloud_agent(self, pr: PullRequest) -> Attribution | None:
-        """O PR ou o primeiro commit foi criado por um agente.
+        """The PR or its first commit was created by an agent.
 
-        O autor do commit tem prioridade sobre o committer: no exemplo do Swarmia, um commit
-        escrito por Claude mas commitado por `cursoragent` conta como agente Claude Code.
+        The commit author takes priority over the committer: in Swarmia's example, a commit
+        authored by Claude but committed by `cursoragent` counts as a Claude Code agent.
         """
         first = pr.commits[0] if pr.commits else None
         for tool in self.patterns:
@@ -171,14 +171,14 @@ class Detector:
             if a is None:
                 return
             key = (a.tool, a.mode)
-            # Alta confiança substitui baixa para a mesma ferramenta e modo
+            # High confidence replaces low for the same tool and mode
             if key not in out or (out[key].confidence == "low" and a.confidence == "high"):
                 out[key] = a
 
         agent = self.cloud_agent(pr)
         if agent:
             add(agent)
-            # Um PR de agente também conta como assistido (como no Swarmia)
+            # An agent PR also counts as assisted (as in Swarmia)
             add(Attribution(agent.tool, "assisted", "high", "PR created by an agent"))
 
         for tool in self.patterns:
