@@ -31,6 +31,11 @@ CI deploys ──webhook─► api ───────►   views      │
 * `api` recebe a telemetria do Claude Code e os eventos de deploy/incidente.
 * As fontes só gravam factos brutos; a atribuição e as métricas são calculadas por cima. Uma regra nova recalcula o histórico com `aimetrics attribute --all`.
 
+## Testar localmente
+
+Guia passo a passo (em inglês) para correr tudo na tua máquina com a tua conta Claude e um repo teu:
+[docs/local-setup.md](docs/local-setup.md).
+
 ## Instalação no servidor
 
 ```bash
