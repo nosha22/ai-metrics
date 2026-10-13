@@ -16,11 +16,24 @@ settings = Settings()
 app = FastAPI(title="Outsmart AI metrics")
 
 
+def _clean(value: str | None) -> str:
+    # Tolera espaços, \r de ficheiros .env editados no Windows e aspas à volta do valor
+    return (value or "").strip().strip("\"'").strip()
+
+
 def _check(expected: str | None, authorization: str | None) -> None:
+    expected = _clean(expected)
     if not expected:
         raise HTTPException(503, "token não configurado no servidor")
-    given = (authorization or "").removeprefix("Bearer ").strip()
-    if not hmac.compare_digest(given, expected):
+    raw = _clean(authorization)
+    given = _clean(raw[7:] if raw.lower().startswith("bearer ") else raw)
+    if not hmac.compare_digest(given.encode(), expected.encode()):
+        # Nunca registar o token; só o suficiente para perceber a diferença
+        if not raw:
+            log.warning("401: pedido sem header Authorization")
+        else:
+            log.warning("401: token diferente (recebido %d caracteres, começa por %r; esperado %d caracteres, começa por %r)",
+                        len(given), given[:2], len(expected), expected[:2])
         raise HTTPException(401, "token inválido")
 
 
