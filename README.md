@@ -39,6 +39,7 @@ Step-by-step guide to run everything on your machine with your own Claude accoun
 ## Server installation
 
 For a server without a public IP (Cloudflare Tunnel + Access), follow [docs/server-setup.md](docs/server-setup.md).
+To try it on a server first without a domain, follow [docs/server-quick-test.md](docs/server-quick-test.md).
 The quick version for a server that already has HTTPS in front of it:
 
 ```bash
