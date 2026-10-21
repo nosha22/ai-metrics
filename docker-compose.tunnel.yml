@@ -1,0 +1,19 @@
+# Optional add-on for servers without a public IP (e.g. the Scaleway machine).
+# Cloudflare Tunnel opens an outbound connection to Cloudflare, so no inbound port is needed.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --build
+#
+# In the Cloudflare dashboard (Zero Trust → Networks → Tunnels), add two public hostnames to the tunnel:
+#   ai-metrics.<your-domain>         → http://grafana:3000   (protect it with Cloudflare Access)
+#   ai-metrics-ingest.<your-domain>  → http://api:8080       (no Access: Claude Code cannot log in; the token protects it)
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      - api
+      - grafana

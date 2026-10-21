@@ -38,6 +38,9 @@ Step-by-step guide to run everything on your machine with your own Claude accoun
 
 ## Server installation
 
+For a server without a public IP (Cloudflare Tunnel + Access), follow [docs/server-setup.md](docs/server-setup.md).
+The quick version for a server that already has HTTPS in front of it:
+
 ```bash
 git clone https://github.com/nosha22/ai-metrics.git && cd ai-metrics
 cp .env.example .env                                         # fill in (keep values in the password manager)
